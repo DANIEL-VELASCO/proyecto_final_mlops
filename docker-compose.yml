@@ -81,9 +81,34 @@ services:
       - mlflow
     environment:
       MLFLOW_TRACKING_URI: http://mlflow:5000
-      POSTGRES_URI: postgresql+psycopg2://${POSTGRES_USER:-mlops}:${POSTGRES_PASSWORD:-mlops}@postgres:5432/${POSTGRES_DB:-mlops}
+      DATABASE_URI: postgresql+psycopg2://${POSTGRES_USER:-mlops}:${POSTGRES_PASSWORD:-mlops}@postgres:5432/${POSTGRES_DB:-mlops}
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MLFLOW_MODEL_NAME: ${MLFLOW_MODEL_NAME:-house-price-model}
+      MLFLOW_PRODUCTION_ALIAS: ${MLFLOW_PRODUCTION_ALIAS:-production}
+      MODEL_POLL_INTERVAL_SEC: ${MODEL_POLL_INTERVAL_SEC:-30}
+      RELOAD_TOKEN: ${RELOAD_TOKEN:-}
+      INFERENCE_EVENTS_TABLE: ${INFERENCE_EVENTS_TABLE:-raw_data.inference_events}
     ports:
       - "8000:8000"
+
+  # P2 — invocable manualmente con perfil 'training':
+  #   docker compose --profile training run --rm training train --batch-id local-001 --training-reason "smoke" ...
+  training:
+    build: ./training
+    container_name: mlops-training
+    profiles: ["training"]
+    depends_on:
+      - mlflow
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+      DATABASE_URI: postgresql+psycopg2://${POSTGRES_USER:-mlops}:${POSTGRES_PASSWORD:-mlops}@postgres:5432/${POSTGRES_DB:-mlops}
+      MLFLOW_S3_ENDPOINT_URL: http://minio:9000
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      MLFLOW_EXPERIMENT_NAME: ${MLFLOW_EXPERIMENT_NAME:-house-price}
+      MLFLOW_MODEL_NAME: ${MLFLOW_MODEL_NAME:-house-price-model}
 
   # ── Persona 3 ──────────────────────────────────────────────
   streamlit:
