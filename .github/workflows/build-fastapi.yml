@@ -7,12 +7,10 @@ on:
       - develop
     paths:
       - 'fastapi/**'
-      - '.github/workflows/build-fastapi.yml'
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    if: hashFiles('fastapi/Dockerfile') != ''
 
     steps:
       - name: Checkout code

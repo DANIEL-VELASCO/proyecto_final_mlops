@@ -7,12 +7,10 @@ on:
       - develop
     paths:
       - 'training/**'
-      - '.github/workflows/build-training.yml'
 
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-    if: hashFiles('training/Dockerfile') != ''
 
     steps:
       - name: Checkout code
