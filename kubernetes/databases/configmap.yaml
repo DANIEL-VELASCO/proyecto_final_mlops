@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-init
+  namespace: mlops
+data:
+  init.sql: |
+    CREATE DATABASE airflow;
+    CREATE DATABASE mlflow;
+    CREATE DATABASE mlops;
+    \connect mlops;
+    CREATE SCHEMA IF NOT EXISTS raw_data;
+    CREATE SCHEMA IF NOT EXISTS clean_data;

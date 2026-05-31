@@ -45,11 +45,9 @@ Thumbs.db
 *.log
 logs/
 
-# Kubernetes secrets (never commit real secrets)
-*-secret.yaml
-*-secrets.yaml
-kubernetes/**/*secret*.yaml
-kubernetes/**/*secrets*.yaml
+# Kubernetes secrets de producción real (nunca commitear)
+kubernetes/**/prod-*.yaml
+kubernetes/**/production-*.yaml
 
 # Locust results
 locust_results/
