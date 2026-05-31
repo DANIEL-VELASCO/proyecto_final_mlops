@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: streamlit
+  namespace: mlops
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: streamlit
+  template:
+    metadata:
+      labels:
+        app: streamlit
+    spec:
+      containers:
+        - name: streamlit
+          image: danielvelasco01/mlops-streamlit:latest
+          ports:
+            - containerPort: 8501
+          env:
+            - name: FASTAPI_URL
+              value: http://fastapi:8000
+            - name: DATABASE_URI
+              valueFrom:
+                secretKeyRef:
+                  name: fastapi-secret
+                  key: DATABASE_URI
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 300m
+              memory: 512Mi
+          readinessProbe:
+            httpGet:
+              path: /_stcore/health
+              port: 8501
+            initialDelaySeconds: 20
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /_stcore/health
+              port: 8501
+            initialDelaySeconds: 40
+            periodSeconds: 20
