@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 import mlflow
-import mlflow.pyfunc
+import mlflow.sklearn
 import pandas as pd
 
 logger = logging.getLogger("p2.fastapi.model_loader")
@@ -27,7 +27,7 @@ logger = logging.getLogger("p2.fastapi.model_loader")
 
 @dataclass
 class LoadedModel:
-    pyfunc: mlflow.pyfunc.PyFuncModel
+    estimator: object  # sklearn Pipeline (preprocessor + regressor)
     version: str
     alias: str
     loaded_at: float
@@ -77,9 +77,9 @@ class ModelLoader:
             uri = f"models:/{self.model_name}@{self.alias}"
             try:
                 logger.info("Cargando modelo desde %s (v%s)", uri, version)
-                model = mlflow.pyfunc.load_model(uri)
+                model = mlflow.sklearn.load_model(uri)
                 new = LoadedModel(
-                    pyfunc=model, version=version, alias=self.alias, loaded_at=time.time()
+                    estimator=model, version=version, alias=self.alias, loaded_at=time.time()
                 )
                 self._loaded = new
                 logger.info("Modelo cargado correctamente — v%s", version)
@@ -101,7 +101,7 @@ class ModelLoader:
         snapshot = self.current()
         if snapshot is None:
             raise RuntimeError("Modelo no cargado todavía")
-        y = snapshot.pyfunc.predict(X)
+        y = snapshot.estimator.predict(X)
         if hasattr(y, "__len__"):
             value = float(y[0])
         else:

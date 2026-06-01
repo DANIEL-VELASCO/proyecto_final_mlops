@@ -12,10 +12,15 @@ spec:
     metadata:
       labels:
         app: fastapi
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
     spec:
       containers:
         - name: fastapi
-          image: danielvelasco01/mlops-fastapi:latest
+          image: mlops-fastapi:local
+          imagePullPolicy: Never  # imagen construida localmente; cambiar a Always cuando GH Actions publique
           ports:
             - containerPort: 8000
           envFrom:
@@ -24,19 +29,19 @@ spec:
           resources:
             requests:
               cpu: 100m
-              memory: 128Mi
+              memory: 256Mi
             limits:
-              cpu: 300m
-              memory: 512Mi
+              cpu: 500m
+              memory: 768Mi
           readinessProbe:
             httpGet:
               path: /health
               port: 8000
-            initialDelaySeconds: 15
+            initialDelaySeconds: 20
             periodSeconds: 10
           livenessProbe:
             httpGet:
               path: /health
               port: 8000
-            initialDelaySeconds: 30
+            initialDelaySeconds: 40
             periodSeconds: 20
