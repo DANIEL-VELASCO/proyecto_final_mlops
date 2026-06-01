@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: airflow-p1-config
+  namespace: mlops
+data:
+  # ── Data API (Persona 1) ──
+  DATA_API_HOST: "data-api"
+  DATA_API_PORT: "80"
+  DATA_API_GROUP_ID: "1"
+  DATA_API_TIMEOUT: "30"
+  DATA_API_MAX_RETRIES: "3"
+  # ── Criterios de decisión de entrenamiento ──
+  MIN_RECORDS_TO_TRAIN: "100"
+  VOLUME_INCREASE_PCT: "0.10"
+  DRIFT_PVALUE_THRESHOLD: "0.05"
+  NEW_CATEGORY_FREQ_THRESHOLD: "0.05"
+  # ── Imagen de training de P2 (actualizar cuando P3 publique con SHA) ──
+  TRAINING_IMAGE: "danielvelasco01/mlops-training:latest"
+  # ── Airflow core ──
+  AIRFLOW__CORE__EXECUTOR: "LocalExecutor"
+  AIRFLOW__CORE__LOAD_EXAMPLES: "false"
