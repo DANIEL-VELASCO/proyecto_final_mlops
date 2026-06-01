@@ -22,7 +22,7 @@ import os
 import sys
 
 import mlflow
-import mlflow.pyfunc
+import mlflow.sklearn
 import pandas as pd
 from sklearn.model_selection import train_test_split
 from sqlalchemy import create_engine, text
@@ -62,9 +62,14 @@ def load_holdout(clean_table: str, batch_id_filter: str | None, test_size: float
 
 
 def load_model_by_version(model_name: str, version: str):
+    """Carga via mlflow.sklearn (no pyfunc) para evitar schema enforcement estricto.
+
+    El modelo es un sklearn Pipeline con OneHotEncoder(handle_unknown='ignore'),
+    así que tolera columnas con dtype object/string indistintamente.
+    """
     uri = f"models:/{model_name}/{version}"
     logger.info("Cargando candidato: %s", uri)
-    return mlflow.pyfunc.load_model(uri)
+    return mlflow.sklearn.load_model(uri)
 
 
 def load_production_model(model_name: str, alias: str):
@@ -80,7 +85,7 @@ def load_production_model(model_name: str, alias: str):
         return None, None
     uri = f"models:/{model_name}@{alias}"
     logger.info("Cargando productivo: %s (version=%s)", uri, mv.version)
-    return mlflow.pyfunc.load_model(uri), mv.version
+    return mlflow.sklearn.load_model(uri), mv.version
 
 
 def evaluate(args: argparse.Namespace) -> dict:

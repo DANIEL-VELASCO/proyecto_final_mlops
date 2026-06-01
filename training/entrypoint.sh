@@ -21,9 +21,9 @@ case "$cmd" in
   help|--help|-h|"")
     echo "Uso: <train|evaluate|promote> [args]"
     echo ""
-    echo "  train    — entrena candidato y lo registra en MLflow"
-    echo "  evaluate — evalúa candidato vs. modelo productivo"
-    echo "  promote  — aplica regla de promoción y actualiza alias en MLflow"
+    echo "  train    â€” entrena candidato y lo registra en MLflow"
+    echo "  evaluate â€” evalÃºa candidato vs. modelo productivo"
+    echo "  promote  â€” aplica regla de promociÃ³n y actualiza alias en MLflow"
     exit 0
     ;;
   *)
