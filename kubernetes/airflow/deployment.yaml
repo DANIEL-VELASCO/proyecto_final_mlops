@@ -16,7 +16,7 @@ spec:
       initContainers:
         - name: wait-for-postgres
           image: busybox:1.35
-          command: ['sh', '-c', 'until nc -z postgres 5432; do echo waiting for postgres; sleep 3; done']
+          command: ['sh', '-c', 'until nc -z postgres-service 5432; do echo waiting for postgres-service; sleep 3; done']
           resources:
             requests:
               cpu: 50m
@@ -25,7 +25,8 @@ spec:
               cpu: 100m
               memory: 64Mi
         - name: airflow-db-init
-          image: apache/airflow:2.9.2   # P3: reemplazar con imagen custom tras CI/CD
+          image: mlops-airflow:local   # imagen local con DAGs y deps de P1 (build manual; cambiar a tag publicado cuando CI funcione)
+          imagePullPolicy: Never
           command: ['airflow', 'db', 'migrate']
           envFrom:
             - secretRef:
@@ -41,7 +42,8 @@ spec:
               memory: 1Gi
       containers:
         - name: airflow-webserver
-          image: apache/airflow:2.9.2   # P3: reemplazar con imagen custom tras CI/CD
+          image: mlops-airflow:local   # imagen local con DAGs y deps de P1 (build manual; cambiar a tag publicado cuando CI funcione)
+          imagePullPolicy: Never
           command: ['airflow', 'webserver']
           ports:
             - containerPort: 8080
@@ -75,7 +77,8 @@ spec:
             - name: airflow-logs
               mountPath: /opt/airflow/logs
         - name: airflow-scheduler
-          image: apache/airflow:2.9.2   # P3: reemplazar con imagen custom tras CI/CD
+          image: mlops-airflow:local   # imagen local con DAGs y deps de P1 (build manual; cambiar a tag publicado cuando CI funcione)
+          imagePullPolicy: Never
           command: ['airflow', 'scheduler']
           envFrom:
             - secretRef:
