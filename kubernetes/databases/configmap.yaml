@@ -9,5 +9,100 @@ data:
     CREATE DATABASE mlflow;
     CREATE DATABASE mlops;
     \connect mlops;
+
+    CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+    -- ── raw_data: datos crudos, hashes, catálogo, inferencias, auditoría ──
     CREATE SCHEMA IF NOT EXISTS raw_data;
+
+    CREATE TABLE IF NOT EXISTS raw_data.raw_batches (
+        id              BIGSERIAL PRIMARY KEY,
+        batch_id        TEXT NOT NULL UNIQUE,
+        group_id        INTEGER NOT NULL DEFAULT 1,
+        batch_number    INTEGER NOT NULL,
+        fetch_timestamp TIMESTAMPTZ DEFAULT NOW(),
+        n_records       INTEGER NOT NULL DEFAULT 0,
+        schema_hash     TEXT,
+        raw_payload     JSONB NOT NULL,
+        status          TEXT NOT NULL DEFAULT 'stored'
+                            CHECK (status IN ('stored','schema_validated','quality_validated',
+                                              'preprocessed','schema_error','quality_error','error')),
+        error_message   TEXT,
+        UNIQUE (group_id, batch_number)
+    );
+
+    CREATE TABLE IF NOT EXISTS raw_data.row_hashes (
+        id         BIGSERIAL PRIMARY KEY,
+        batch_id   TEXT NOT NULL REFERENCES raw_data.raw_batches(batch_id) ON DELETE CASCADE,
+        row_hash   TEXT NOT NULL UNIQUE,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS raw_data.category_catalog (
+        id         BIGSERIAL PRIMARY KEY,
+        feature    TEXT NOT NULL,
+        value      TEXT NOT NULL,
+        first_seen TIMESTAMPTZ DEFAULT NOW(),
+        last_seen  TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE (feature, value)
+    );
+
+    CREATE TABLE IF NOT EXISTS raw_data.inference_events (
+        request_id    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        occurred_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        model_name    TEXT NOT NULL,
+        model_version TEXT NOT NULL,
+        model_alias   TEXT NOT NULL,
+        input_payload JSONB NOT NULL,
+        prediction    DOUBLE PRECISION,
+        status        TEXT NOT NULL CHECK (status IN ('ok','error')),
+        error_message TEXT,
+        latency_ms    INTEGER
+    );
+
+    CREATE TABLE IF NOT EXISTS raw_data.training_audit (
+        id               BIGSERIAL PRIMARY KEY,
+        batch_id         TEXT NOT NULL REFERENCES raw_data.raw_batches(batch_id),
+        execution_date   TIMESTAMPTZ DEFAULT NOW(),
+        n_records        INTEGER NOT NULL,
+        decision         TEXT NOT NULL CHECK (decision IN ('train','skip')),
+        reason           TEXT NOT NULL,
+        null_pct_max     DOUBLE PRECISION,
+        duplicate_pct    DOUBLE PRECISION,
+        drift_detected   BOOLEAN DEFAULT FALSE,
+        drift_variables  TEXT,
+        new_categories   TEXT,
+        volume_pct       DOUBLE PRECISION,
+        mlflow_run_id    TEXT,
+        model_version    TEXT,
+        mae_candidate    DOUBLE PRECISION,
+        mae_production   DOUBLE PRECISION,
+        rmse_candidate   DOUBLE PRECISION,
+        rmse_production  DOUBLE PRECISION,
+        promoted         BOOLEAN,
+        promotion_reason TEXT,
+        status           TEXT DEFAULT 'pending'
+                             CHECK (status IN ('pending','training','completed','failed'))
+    );
+
+    -- ── clean_data: datos limpios para entrenamiento (P2 los lee) ──
     CREATE SCHEMA IF NOT EXISTS clean_data;
+
+    CREATE TABLE IF NOT EXISTS clean_data.properties (
+        id             BIGSERIAL PRIMARY KEY,
+        batch_id       TEXT NOT NULL REFERENCES raw_data.raw_batches(batch_id),
+        row_hash       TEXT NOT NULL UNIQUE,
+        processed_ts   TIMESTAMPTZ DEFAULT NOW(),
+        brokered_by    TEXT,
+        status         TEXT,
+        price          DOUBLE PRECISION NOT NULL,
+        bed            INTEGER,
+        bath           INTEGER,
+        acre_lot       DOUBLE PRECISION,
+        street         TEXT,
+        city           TEXT,
+        state          TEXT,
+        zip_code       INTEGER,
+        house_size     INTEGER,
+        prev_sold_date DATE
+    );
