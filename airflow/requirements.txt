@@ -1,0 +1,10 @@
+apache-airflow-providers-postgres==5.11.0
+apache-airflow-providers-http==4.10.0
+psycopg2-binary==2.9.9
+SQLAlchemy==1.4.52
+pandas==2.1.4
+numpy==1.26.4
+scikit-learn==1.4.0
+requests==2.31.0
+scipy==1.11.4
+python-dotenv==1.0.0
