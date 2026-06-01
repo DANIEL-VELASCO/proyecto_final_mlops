@@ -25,7 +25,7 @@ spec:
               cpu: 100m
               memory: 64Mi
         - name: airflow-db-init
-          image: mlops-airflow:local   # imagen local con DAGs y deps de P1 (build manual; cambiar a tag publicado cuando CI funcione)
+          image: mlops-airflow:local
           imagePullPolicy: Never
           command: ['airflow', 'db', 'migrate']
           envFrom:
@@ -40,9 +40,27 @@ spec:
             limits:
               cpu: 500m
               memory: 1Gi
+        # Asegura que el socket Docker sea accesible al usuario airflow (uid 50000).
+        # Sin esto, /var/run/docker.sock pertenece a root y los `docker run` del DAG
+        # fallarian con "permission denied".
+        - name: fix-docker-sock-perms
+          image: busybox:1.35
+          command: ['sh', '-c', 'chmod 666 /var/run/docker.sock || true']
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: docker-sock
+              mountPath: /var/run/docker.sock
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 50m
+              memory: 32Mi
       containers:
         - name: airflow-webserver
-          image: mlops-airflow:local   # imagen local con DAGs y deps de P1 (build manual; cambiar a tag publicado cuando CI funcione)
+          image: mlops-airflow:local
           imagePullPolicy: Never
           command: ['airflow', 'webserver']
           ports:
@@ -77,7 +95,7 @@ spec:
             - name: airflow-logs
               mountPath: /opt/airflow/logs
         - name: airflow-scheduler
-          image: mlops-airflow:local   # imagen local con DAGs y deps de P1 (build manual; cambiar a tag publicado cuando CI funcione)
+          image: mlops-airflow:local
           imagePullPolicy: Never
           command: ['airflow', 'scheduler']
           envFrom:
@@ -95,7 +113,16 @@ spec:
           volumeMounts:
             - name: airflow-logs
               mountPath: /opt/airflow/logs
+            - name: docker-sock
+              mountPath: /var/run/docker.sock
       volumes:
         - name: airflow-logs
           persistentVolumeClaim:
             claimName: airflow-logs-pvc
+        # Acceso al daemon Docker del host para que el DAG pueda `docker run` la
+        # imagen de training. Funciona en Docker Desktop K8s; en otros clusters
+        # conviene migrar a KubernetesPodOperator.
+        - name: docker-sock
+          hostPath:
+            path: /var/run/docker.sock
+            type: Socket
