@@ -19,8 +19,8 @@ spec:
     spec:
       containers:
         - name: fastapi
-          image: mlops-fastapi:local
-          imagePullPolicy: Never  # imagen construida localmente; cambiar a Always cuando GH Actions publique
+          image: max181818/mlops-fastapi:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8000
           envFrom:

@@ -16,7 +16,7 @@ data:
   DRIFT_PVALUE_THRESHOLD: "0.05"
   NEW_CATEGORY_FREQ_THRESHOLD: "0.05"
   # ── Imagen de training de P2 (actualizar cuando P3 publique con SHA) ──
-  TRAINING_IMAGE: "danielvelasco01/mlops-training:latest"
+  TRAINING_IMAGE: "max181818/mlops-training:latest"
   # ── Airflow core ──
   AIRFLOW__CORE__EXECUTOR: "LocalExecutor"
   AIRFLOW__CORE__LOAD_EXAMPLES: "false"
