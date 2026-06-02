@@ -359,46 +359,55 @@ def preprocess_data(**context):
     df_raw   = pd.DataFrame(records)
     df_clean = clean_batch(df_raw)
 
-    inserted = 0
-    with engine.begin() as conn:
-        for _, rec in df_clean.iterrows():
-            rec_dict  = rec.to_dict()
-            row_hash  = compute_row_hash({k: str(v) for k, v in rec_dict.items()})
+    # Filtrar filas sin target (no entrenan ni evaluan)
+    df_clean = df_clean.dropna(subset=["price"])
+    df_clean = df_clean[df_clean["price"].astype(float) > 0]
 
-            try:
-                conn.execute(
-                    text("""
-                        INSERT INTO clean_data.properties
-                            (batch_id, row_hash,
-                             brokered_by, status, price, bed, bath,
-                             acre_lot, street, city, state, zip_code,
-                             house_size, prev_sold_date)
-                        VALUES
-                            (:batch_id, :row_hash,
-                             :brokered_by, :status, :price, :bed, :bath,
-                             :acre_lot, :street, :city, :state, :zip_code,
-                             :house_size, :prev_sold_date)
-                    """),
-                    {
-                        "batch_id":      batch_id,
-                        "row_hash":      row_hash,
-                        "brokered_by":   rec_dict.get("brokered_by"),
-                        "status":        rec_dict.get("status"),
-                        "price":         rec_dict.get("price"),
-                        "bed":           rec_dict.get("bed"),
-                        "bath":          rec_dict.get("bath"),
-                        "acre_lot":      rec_dict.get("acre_lot"),
-                        "street":        rec_dict.get("street"),
-                        "city":          rec_dict.get("city"),
-                        "state":         rec_dict.get("state"),
-                        "zip_code":      rec_dict.get("zip_code"),
-                        "house_size":    rec_dict.get("house_size"),
-                        "prev_sold_date": rec_dict.get("prev_sold_date"),
-                    },
-                )
-                inserted += 1
-            except Exception:
-                pass  # Fila duplicada — ya en clean_data
+    inserted = 0
+    # Cada INSERT en su propia transaccion via UPSERT (ON CONFLICT DO NOTHING).
+    # Sin esto, una sola fila duplicada o invalida aborta toda la transaccion y
+    # las filas siguientes no se insertan ("current transaction is aborted").
+    insert_sql = text("""
+        INSERT INTO clean_data.properties
+            (batch_id, row_hash,
+             brokered_by, status, price, bed, bath,
+             acre_lot, street, city, state, zip_code,
+             house_size, prev_sold_date)
+        VALUES
+            (:batch_id, :row_hash,
+             :brokered_by, :status, :price, :bed, :bath,
+             :acre_lot, :street, :city, :state, :zip_code,
+             :house_size, :prev_sold_date)
+        ON CONFLICT (row_hash) DO NOTHING
+    """)
+    rows_payload = []
+    for _, rec in df_clean.iterrows():
+        rec_dict  = rec.to_dict()
+        row_hash  = compute_row_hash({k: str(v) for k, v in rec_dict.items()})
+        rows_payload.append({
+            "batch_id":      batch_id,
+            "row_hash":      row_hash,
+            "brokered_by":   rec_dict.get("brokered_by"),
+            "status":        rec_dict.get("status"),
+            "price":         rec_dict.get("price"),
+            "bed":           rec_dict.get("bed"),
+            "bath":          rec_dict.get("bath"),
+            "acre_lot":      rec_dict.get("acre_lot"),
+            "street":        rec_dict.get("street"),
+            "city":          rec_dict.get("city"),
+            "state":         rec_dict.get("state"),
+            "zip_code":      rec_dict.get("zip_code"),
+            "house_size":    rec_dict.get("house_size"),
+            "prev_sold_date": rec_dict.get("prev_sold_date"),
+        })
+
+    # Insert por chunks para no llenar memoria con 90K dicts a la vez.
+    chunk_size = 5000
+    with engine.begin() as conn:
+        for i in range(0, len(rows_payload), chunk_size):
+            chunk = rows_payload[i:i + chunk_size]
+            result = conn.execute(insert_sql, chunk)
+            inserted += result.rowcount if result.rowcount and result.rowcount > 0 else len(chunk)
 
         conn.execute(
             text("UPDATE raw_data.raw_batches SET status='preprocessed' WHERE batch_id=:bid"),
