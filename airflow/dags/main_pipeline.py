@@ -41,6 +41,17 @@ def _engine():
     return create_engine(DATABASE_URI, pool_pre_ping=True)
 
 
+def _decode_payload(raw):
+    """psycopg2 deserializa JSONB en list/dict; el JSON viejo (text) llega como str.
+
+    Esta funcion absorbe ambos casos para que el resto del DAG no tenga que pensar
+    en el tipo de columna.
+    """
+    if isinstance(raw, (str, bytes, bytearray)):
+        return json.loads(raw)
+    return raw
+
+
 def _next_batch_number(engine) -> int:
     with engine.connect() as conn:
         last = conn.execute(
@@ -213,7 +224,7 @@ def validate_schema(**context):
             {"bid": batch_id},
         ).fetchone()
 
-    df     = pd.DataFrame(json.loads(row.raw_payload))
+    df     = pd.DataFrame(_decode_payload(row.raw_payload))
     result = _vs(df)
     log.info("Esquema — válido: %s | faltantes: %s", result["valid"], result["missing"])
 
@@ -243,7 +254,7 @@ def validate_data_quality(**context):
             {"bid": batch_id},
         ).fetchone()
 
-    df     = pd.DataFrame(json.loads(row.raw_payload))
+    df     = pd.DataFrame(_decode_payload(row.raw_payload))
     result = validate_quality(df)
     log.info("Calidad — válido: %s | nulos: %.1f%% | duplicados: %.1f%%",
              result["valid"], result["null_pct_max"]*100, result["duplicate_pct"]*100)
@@ -278,7 +289,7 @@ def detect_new_categories(**context):
             {"bid": batch_id},
         ).fetchone()
 
-    df     = pd.DataFrame(json.loads(row.raw_payload))
+    df     = pd.DataFrame(_decode_payload(row.raw_payload))
     known  = _load_known_categories(engine)
     findings = _dnc(df, known)
 
@@ -307,7 +318,7 @@ def detect_data_drift(**context):
             {"bid": batch_id},
         ).fetchone()
 
-    df_new = pd.DataFrame(json.loads(row.raw_payload))
+    df_new = pd.DataFrame(_decode_payload(row.raw_payload))
     df_ref = pd.read_sql(
         "SELECT bed, bath, acre_lot, house_size, price FROM clean_data.properties "
         "WHERE batch_id != %(bid)s LIMIT 50000",
@@ -344,7 +355,7 @@ def preprocess_data(**context):
             {"bid": batch_id},
         ).fetchone()
 
-    records  = json.loads(row.raw_payload)
+    records  = _decode_payload(row.raw_payload)
     df_raw   = pd.DataFrame(records)
     df_clean = clean_batch(df_raw)
 
