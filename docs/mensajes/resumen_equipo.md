@@ -45,28 +45,31 @@ que queda:
 
 ## 🌳 Estado del repositorio
 
-```
-main = develop = ff758f1  (sin desfase, ambos al día)
+`main` y `develop` están sincronizadas. Argo CD apunta a `main` con `automated.prune + selfHeal` → cualquier commit nuevo se sincroniza automáticamente.
 
-Hitos en el historial:
-  ff758f1  Merge PR: feat(p2): integration fixes + bring P1 into integration line
-  f4728fe  Merge PR: feat(p1): DAG completo, pipeline de datos y DDL de base de datos
-  c776652  docs(integration): plan to merge feature branches via develop -> main
-  ad215aa  fix(p2): use mlflow.sklearn instead of pyfunc to bypass schema enforcement
-  eb9e96e  feat(p1): DAG completo, pipeline de datos y DDL de base de datos
-  9ceb79b  Merge pull request #1 from DANIEL-VELASCO/feature/p2-mlflow-fastapi
-```
+Últimos commits relevantes:
+- `fix(p1-dag): store_raw_batch usa UPSERT chunked para row_hashes`
+- `fix(p1-dag): preprocess_data usa UPSERT y filtra price nulo`
+- `chore(airflow): subir memoria scheduler a 4Gi por OOM con batches 200K+ registros`
+- `fix(p1-dag): api_client usa /data?group_number={gid} + _decode_payload helper`
+- `fix(airflow): inyectar DATABASE_URI/MLFLOW/MinIO en airflow-secret`
+- `feat(infra): data-api en K8s + Airflow con docker.sock y CLI docker`
+- `chore(k8s): apuntar a imagenes publicadas en DockerHub`
+- `docs(fastapi+training): READMEs por componente`
 
-Argo CD apunta a `main` con `automated.prune + selfHeal` → cualquier commit nuevo se sincroniza solo.
+## 🟡 Pendiente
 
-## 🟡 Pendiente (no bloquea ya, pero conviene cerrar)
+Solo queda **una cosa**: grabar y subir el video de sustentación de 10 min.
+Guion paso a paso con timings, demos y comandos copy-paste en
+`docs/video_sustentacion.md`.
 
-| # | Pendiente | Quién | Notas |
-|---|---|---|---|
-| 1 | **DOCKERHUB_USERNAME + DOCKERHUB_TOKEN** en GitHub Actions Secrets | dueño del repo (Daniel) | Settings → Secrets and variables → Actions. Mientras tanto, K8s usa imágenes locales con `imagePullPolicy: Never`. |
-| 2 | Ejecutar el DAG por primera vez contra la API REAL (`cristiandiaz13/mlops-puj:data-api-pf-v1`) | P1 | El DAG ya está cargado en Airflow; falta activarlo (despausarlo) y ver que consume datos reales. |
-| 3 | **Video sustentación 10 min** en YouTube | Todos | Guion completo en `docs/video_sustentacion.md` |
-| 4 | README del repo refinado | yo (ya entregado) | Ver `README.md` |
+Todo lo demás está hecho:
+- ✅ DOCKERHUB_USERNAME + DOCKERHUB_TOKEN configurados en GitHub Actions.
+- ✅ Imágenes publicadas en DockerHub (`max181818/mlops-fastapi:latest`, `max181818/mlops-training:latest`).
+- ✅ Argo CD instalado, Application creada, `Synced + Healthy`.
+- ✅ DAG ejecutándose contra la API real con varios bugs ya parcheados.
+- ✅ FastAPI sirviendo desde la imagen pública de DockerHub.
+- ✅ README + contratos + guion del video listos en `docs/`.
 
 ## 📁 Documentación útil en el repo
 
