@@ -109,29 +109,22 @@ def _run_training_cmd(cmd_args: list[str], stdin_data: str | None = None) -> dic
 
     Si se pasa stdin_data, se inyecta como stdin del container (requiere -i en docker run).
     """
-    env = {
-        **os.environ,
-        "MLFLOW_TRACKING_URI":  MLFLOW_URI,
-        "DATABASE_URI":         DATABASE_URI,
-        "MLFLOW_S3_ENDPOINT_URL": MLFLOW_S3,
-        "AWS_ACCESS_KEY_ID":    AWS_KEY,
-        "AWS_SECRET_ACCESS_KEY": AWS_SECRET,
-    }
-
-    add_host_args = []
-    for svc in ("mlflow-service", "postgres-service", "minio-service"):
-        ip = _resolve_k8s_service(svc)
-        if ip:
-            add_host_args += ["--add-host", f"{svc}:{ip}"]
-            log.info("--add-host %s=%s", svc, ip)
+    # En Docker Desktop los ClusterIPs de K8s no son alcanzables desde contenedores
+    # Docker con --network host. Se usan NodePort services (30500/30432/30900) expuestos
+    # en localhost del nodo, que sí son accesibles desde la red host del Docker daemon.
+    docker_mlflow = MLFLOW_URI.replace("mlflow-service:5000",    "localhost:30500") \
+                              .replace("mlflow:5000",             "localhost:30500")
+    docker_db     = DATABASE_URI.replace("postgres-service:5432", "localhost:30432") \
+                                .replace("postgres:5432",          "localhost:30432")
+    docker_s3     = MLFLOW_S3.replace("minio-service:9000",       "localhost:30900") \
+                              .replace("minio:9000",               "localhost:30900")
 
     stdin_flag = ["-i"] if stdin_data is not None else []
     docker_cmd = [
         "docker", "run", "--rm", *stdin_flag, "--network", "host",
-        *add_host_args,
-        "-e", f"MLFLOW_TRACKING_URI={MLFLOW_URI}",
-        "-e", f"DATABASE_URI={DATABASE_URI}",
-        "-e", f"MLFLOW_S3_ENDPOINT_URL={MLFLOW_S3}",
+        "-e", f"MLFLOW_TRACKING_URI={docker_mlflow}",
+        "-e", f"DATABASE_URI={docker_db}",
+        "-e", f"MLFLOW_S3_ENDPOINT_URL={docker_s3}",
         "-e", f"AWS_ACCESS_KEY_ID={AWS_KEY}",
         "-e", f"AWS_SECRET_ACCESS_KEY={AWS_SECRET}",
         TRAINING_IMAGE,
@@ -571,17 +564,14 @@ def train_candidate_model(**context):
     reason     = ti.xcom_pull(task_ids="decide_training",  key="train_reason")
     commit_sha = os.getenv("GIT_COMMIT_SHA", "unknown")
 
-    # Hiperparametros ligeros (n_estimators=50, max_depth=15) para que el train
-    # termine en ~30s con 70K+ filas. Para una corrida productiva mas profunda,
-    # subir n_estimators=200 y dejar max_depth sin tope.
     output = _run_training_cmd([
         "train",
         "--batch-id",         batch_id,
         "--training-reason",  reason,
         "--commit-sha",       commit_sha,
         "--clean-table",      "clean_data.properties",
-        "--n-estimators",     "50",
-        "--max-depth",        "15",
+        "--n-estimators",     "25",
+        "--max-depth",        "10",
     ])
 
     log.info("Training completado — run_id: %s, version: %s",
@@ -662,8 +652,8 @@ def promote_model(**context):
     new_cats    = ti.xcom_pull(task_ids="detect_new_categories", key="new_categories") or {}
     volume_pct  = ti.xcom_pull(task_ids="decide_training",       key="volume_pct") or 0.0
 
-    candidate_m = promo.get("candidate_metrics", {})
-    production_m = promo.get("production_metrics", {})
+    candidate_m = promo.get("candidate_metrics") or {}
+    production_m = promo.get("production_metrics") or {}
 
     engine = _engine()
     with engine.begin() as conn:
@@ -716,8 +706,8 @@ def reject_model(**context):
     new_cats    = ti.xcom_pull(task_ids="detect_new_categories", key="new_categories") or {}
     volume_pct  = ti.xcom_pull(task_ids="decide_training",       key="volume_pct") or 0.0
 
-    candidate_m  = promo.get("candidate_metrics", {})
-    production_m = promo.get("production_metrics", {})
+    candidate_m  = promo.get("candidate_metrics") or {}
+    production_m = promo.get("production_metrics") or {}
 
     engine = _engine()
     with engine.begin() as conn:
