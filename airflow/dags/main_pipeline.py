@@ -88,6 +88,22 @@ def _upsert_categories(engine, new_cats: dict) -> None:
                 )
 
 
+def _resolve_k8s_service(name: str) -> str:
+    """Resuelve un Service de K8s a su ClusterIP desde dentro del pod Airflow.
+
+    El container hijo que el DAG lanza con `docker run` corre en la red del
+    Docker daemon del host (NO en la red del cluster), asi que NO puede
+    resolver via DNS los nombres de Services como `mlflow-service`. Pero el
+    Airflow pod si los resuelve, y la ClusterIP TCP es alcanzable desde el
+    daemon. Resolvemos aqui y luego inyectamos `--add-host=NAME:IP` al docker run.
+    """
+    import socket
+    try:
+        return socket.gethostbyname(name)
+    except Exception:
+        return ""
+
+
 def _run_training_cmd(cmd_args: list[str]) -> dict:
     """Ejecuta un subcomando de la imagen de entrenamiento de P2 y parsea la salida JSON."""
     env = {
@@ -98,8 +114,17 @@ def _run_training_cmd(cmd_args: list[str]) -> dict:
         "AWS_ACCESS_KEY_ID":    AWS_KEY,
         "AWS_SECRET_ACCESS_KEY": AWS_SECRET,
     }
+
+    add_host_args = []
+    for svc in ("mlflow-service", "postgres-service", "minio-service"):
+        ip = _resolve_k8s_service(svc)
+        if ip:
+            add_host_args += ["--add-host", f"{svc}:{ip}"]
+            log.info("--add-host %s=%s", svc, ip)
+
     docker_cmd = [
         "docker", "run", "--rm", "--network", "host",
+        *add_host_args,
         "-e", f"MLFLOW_TRACKING_URI={MLFLOW_URI}",
         "-e", f"DATABASE_URI={DATABASE_URI}",
         "-e", f"MLFLOW_S3_ENDPOINT_URL={MLFLOW_S3}",
