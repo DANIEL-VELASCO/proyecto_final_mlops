@@ -25,8 +25,8 @@ spec:
               cpu: 100m
               memory: 64Mi
         - name: airflow-db-init
-          image: mlops-airflow:local
-          imagePullPolicy: Never
+          image: danielvelasco01/mlops-airflow:latest
+          imagePullPolicy: IfNotPresent
           command: ['airflow', 'db', 'migrate']
           envFrom:
             - secretRef:
@@ -60,8 +60,8 @@ spec:
               memory: 32Mi
       containers:
         - name: airflow-webserver
-          image: mlops-airflow:local
-          imagePullPolicy: Never
+          image: danielvelasco01/mlops-airflow:latest
+          imagePullPolicy: IfNotPresent
           command: ['airflow', 'webserver']
           ports:
             - containerPort: 8080
@@ -95,8 +95,8 @@ spec:
             - name: airflow-logs
               mountPath: /opt/airflow/logs
         - name: airflow-scheduler
-          image: mlops-airflow:local
-          imagePullPolicy: Never
+          image: danielvelasco01/mlops-airflow:latest
+          imagePullPolicy: IfNotPresent
           command: ['airflow', 'scheduler']
           envFrom:
             - secretRef:
