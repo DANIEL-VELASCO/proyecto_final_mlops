@@ -4,6 +4,12 @@ Distribución sugerida: **3 min P1 + 3 min P2 + 3 min P3 + 1 min cierre conjunto
 
 Para grabar: cada uno comparte pantalla en su parte. Recomendado OBS o Zoom. Pueden grabar por separado y editar.
 
+> **Quien levante el cluster** debe seguir el README. El proyecto está
+> diseñado para que P3 (DevOps) lo despliegue desde cero en su máquina
+> antes de la grabación; no requiere acción de P1 o P2 si la imagen
+> `mlops-airflow:local` y `mlops-fastapi:local`/`mlops-training:local`
+> ya están publicadas (las imágenes de P2 sí están en DockerHub).
+>
 > **Estado del sistema cuando se grabe** (verificado el 2026-06-01):
 > - Cluster K8s local con todos los pods Running (Airflow 2/2, FastAPI 2/2, Postgres, MLflow, MinIO, Streamlit, Grafana, Prometheus, Locust, Argo CD, data-api).
 > - DAG `real_estate_mlops_pipeline` ejecutándose contra la API real (lotes ~94K-230K registros desde `cristiandiaz13/mlops-puj:data-api-pf-v1`).

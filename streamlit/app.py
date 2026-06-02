@@ -101,15 +101,15 @@ with tab2:
         query = text("""
             SELECT
                 batch_id,
-                fecha,
-                n_registros,
+                execution_date AS fecha,
+                n_records      AS n_registros,
                 decision,
-                razon,
-                mae_candidato,
-                mae_productivo,
-                promovido
+                reason         AS razon,
+                mae_candidate  AS mae_candidato,
+                mae_production AS mae_productivo,
+                promoted       AS promovido
             FROM raw_data.training_audit
-            ORDER BY fecha DESC
+            ORDER BY execution_date DESC
         """)
         with engine.connect() as conn:
             return pd.read_sql(query, conn)
@@ -123,6 +123,8 @@ with tab2:
             # Métricas resumen
             m1, m2, m3, m4 = st.columns(4)
             m1.metric("Total de lotes", len(df))
+            # P1 escribe decision='train' o 'skip_training'; normalizamos a la UI.
+            df["decision"] = df["decision"].replace({"train": "entrenó", "skip_training": "no entrenó"})
             m2.metric("Lotes entrenados", df["decision"].eq("entrenó").sum())
             m3.metric("Modelos promovidos", df["promovido"].eq(True).sum())
             entrenamientos = df[df["decision"] == "entrenó"]
