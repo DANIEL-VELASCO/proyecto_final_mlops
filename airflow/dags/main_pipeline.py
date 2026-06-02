@@ -192,17 +192,21 @@ def store_raw_batch(**context):
         else:
             log.warning("Lote %s ya existe — omitiendo inserción", batch_id)
 
-        # Insertar hashes nuevos para deduplicación
+        # Insertar hashes nuevos para deduplicacion (UPSERT bulk para no abortar
+        # la txn al primer duplicado).
+        hash_payload = [{"bid": batch_id, "rh": rh} for rh in row_hashes]
+        chunk_size = 5000
         new_count = 0
-        for rh in row_hashes:
-            try:
-                conn.execute(
-                    text("INSERT INTO raw_data.row_hashes (batch_id, row_hash) VALUES (:bid, :rh)"),
-                    {"bid": batch_id, "rh": rh},
-                )
-                new_count += 1
-            except Exception:
-                pass  # Hash ya existe en otro lote
+        for i in range(0, len(hash_payload), chunk_size):
+            chunk = hash_payload[i:i + chunk_size]
+            result = conn.execute(
+                text("INSERT INTO raw_data.row_hashes (batch_id, row_hash) VALUES (:bid, :rh) ON CONFLICT (row_hash) DO NOTHING"),
+                chunk,
+            )
+            if result.rowcount and result.rowcount > 0:
+                new_count += result.rowcount
+            else:
+                new_count += len(chunk)
 
     log.info("Almacenados %d/%d registros nuevos únicos", new_count, len(records))
     ti.xcom_push(key="batch_id",    value=batch_id)
