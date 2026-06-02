@@ -195,7 +195,7 @@ def store_raw_batch(**context):
         # Insertar hashes nuevos para deduplicacion (UPSERT bulk para no abortar
         # la txn al primer duplicado).
         hash_payload = [{"bid": batch_id, "rh": rh} for rh in row_hashes]
-        chunk_size = 5000
+        chunk_size = 1000
         new_count = 0
         for i in range(0, len(hash_payload), chunk_size):
             chunk = hash_payload[i:i + chunk_size]
@@ -406,7 +406,7 @@ def preprocess_data(**context):
         })
 
     # Insert por chunks para no llenar memoria con 90K dicts a la vez.
-    chunk_size = 5000
+    chunk_size = 1000
     with engine.begin() as conn:
         for i in range(0, len(rows_payload), chunk_size):
             chunk = rows_payload[i:i + chunk_size]
