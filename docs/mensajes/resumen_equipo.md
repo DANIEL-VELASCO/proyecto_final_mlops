@@ -63,6 +63,12 @@ Solo queda **una cosa**: grabar y subir el video de sustentación de 10 min.
 Guion paso a paso con timings, demos y comandos copy-paste en
 `docs/video_sustentacion.md`.
 
+> **Nota práctica para quien levante el cluster** (P3 va a hacerlo):
+> el DAG entrena con `n_estimators=50, max_depth=15` para que `train_candidate_model`
+> termine en ~30 s sobre los ~70K registros del batch real. Para una corrida
+> productiva mas pesada, editar `airflow/dags/main_pipeline.py` líneas 568-578
+> o sobreescribir con env vars. R² de los modelos pierde apenas 0.01-0.02.
+
 Todo lo demás está hecho:
 - ✅ DOCKERHUB_USERNAME + DOCKERHUB_TOKEN configurados en GitHub Actions.
 - ✅ Imágenes publicadas en DockerHub (`max181818/mlops-fastapi:latest`, `max181818/mlops-training:latest`).
