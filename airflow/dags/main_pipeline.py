@@ -104,8 +104,11 @@ def _resolve_k8s_service(name: str) -> str:
         return ""
 
 
-def _run_training_cmd(cmd_args: list[str]) -> dict:
-    """Ejecuta un subcomando de la imagen de entrenamiento de P2 y parsea la salida JSON."""
+def _run_training_cmd(cmd_args: list[str], stdin_data: str | None = None) -> dict:
+    """Ejecuta un subcomando de la imagen de entrenamiento de P2 y parsea la salida JSON.
+
+    Si se pasa stdin_data, se inyecta como stdin del container (requiere -i en docker run).
+    """
     env = {
         **os.environ,
         "MLFLOW_TRACKING_URI":  MLFLOW_URI,
@@ -122,8 +125,9 @@ def _run_training_cmd(cmd_args: list[str]) -> dict:
             add_host_args += ["--add-host", f"{svc}:{ip}"]
             log.info("--add-host %s=%s", svc, ip)
 
+    stdin_flag = ["-i"] if stdin_data is not None else []
     docker_cmd = [
-        "docker", "run", "--rm", "--network", "host",
+        "docker", "run", "--rm", *stdin_flag, "--network", "host",
         *add_host_args,
         "-e", f"MLFLOW_TRACKING_URI={MLFLOW_URI}",
         "-e", f"DATABASE_URI={DATABASE_URI}",
@@ -134,7 +138,9 @@ def _run_training_cmd(cmd_args: list[str]) -> dict:
     ] + cmd_args
 
     log.info("Ejecutando: %s", " ".join(docker_cmd))
-    result = subprocess.run(docker_cmd, capture_output=True, text=True)
+    result = subprocess.run(
+        docker_cmd, capture_output=True, text=True, input=stdin_data
+    )
 
     if result.returncode != 0:
         log.error("Stderr: %s", result.stderr)
@@ -622,18 +628,19 @@ def decide_promotion(**context) -> str:
     model_version  = ti.xcom_pull(task_ids="train_candidate_model", key="model_version")
     eval_output    = ti.xcom_pull(task_ids="evaluate_candidate_model", key="evaluation_output")
 
-    import tempfile
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-        json.dump(eval_output, f)
-        eval_file = f.name
-
-    output = _run_training_cmd([
-        "promote",
-        "--evaluation-json",      eval_file,
-        "--candidate-version",    str(model_version),
-        "--mae-improvement-pct",  "3.0",
-        "--rmse-tolerance-pct",   "1.0",
-    ])
+    # Pasamos el eval_output por stdin (promote.py soporta '-' como path).
+    # No usamos archivo porque el /tmp del pod Airflow no es el /tmp que ve el
+    # docker daemon del host, asi que un -v /tmp:/tmp no sirve.
+    output = _run_training_cmd(
+        [
+            "promote",
+            "--evaluation-json",      "-",
+            "--candidate-version",    str(model_version),
+            "--mae-improvement-pct",  "3.0",
+            "--rmse-tolerance-pct",   "1.0",
+        ],
+        stdin_data=json.dumps(eval_output),
+    )
 
     log.info("Promoción: %s — %s", output.get("promoted"), output.get("reason"))
     ti.xcom_push(key="promotion_output", value=output)
