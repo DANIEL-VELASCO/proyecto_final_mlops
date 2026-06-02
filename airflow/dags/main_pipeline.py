@@ -565,12 +565,17 @@ def train_candidate_model(**context):
     reason     = ti.xcom_pull(task_ids="decide_training",  key="train_reason")
     commit_sha = os.getenv("GIT_COMMIT_SHA", "unknown")
 
+    # Hiperparametros ligeros (n_estimators=50, max_depth=15) para que el train
+    # termine en ~30s con 70K+ filas. Para una corrida productiva mas profunda,
+    # subir n_estimators=200 y dejar max_depth sin tope.
     output = _run_training_cmd([
         "train",
         "--batch-id",         batch_id,
         "--training-reason",  reason,
         "--commit-sha",       commit_sha,
         "--clean-table",      "clean_data.properties",
+        "--n-estimators",     "50",
+        "--max-depth",        "15",
     ])
 
     log.info("Training completado — run_id: %s, version: %s",
