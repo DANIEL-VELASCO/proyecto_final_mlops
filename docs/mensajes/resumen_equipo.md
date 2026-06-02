@@ -18,7 +18,8 @@ que queda:
 | **MinIO** | Running | bucket `mlflow-artifacts` con el modelo serializado |
 | **MLflow** | Running | `house-price-model v1` con alias `production` |
 | **Airflow** | Running 2/2 | scheduler + webserver, DAG `real_estate_mlops_pipeline` detectado y cargado |
-| **FastAPI** | Running 2 réplicas | image `mlops-fastapi:local`, `/health` `/predict` `/metrics` `/reload-model` |
+| **FastAPI** | Running 2 réplicas | image **`max181818/mlops-fastapi:latest`** desde DockerHub (publicada por GitHub Actions), `/health` `/predict` `/metrics` `/reload-model` |
+| **data-api** | Running | imagen `cristiandiaz13/mlops-puj:data-api-pf-v1` desplegada en el cluster con Deployment+Service |
 | **Streamlit** | Running | `/healthz ok`, contrato HTTP con FastAPI verificado |
 | **Prometheus** | Running | scrapeando `fastapi:8000/metrics` cada 15s |
 | **Grafana** | Running | dashboard `MLOps FastAPI Dashboard` con 5 paneles activos |
@@ -31,6 +32,9 @@ que queda:
 2. **10 predicciones manuales** desde port-forward con ciudades reales (NY, LA, Chicago…) — precios coherentes con el patrón geográfico, todas 200 OK, latencias 12-205ms
 3. **Locust load test**: 80 usuarios concurrentes, 90 s, **3307 requests, 0 fallos**, 31.2 req/s sostenido en `/predict`, mediana 38ms, **2655 inferencias persistidas** en `raw_data.inference_events`
 4. **Grafana** captó la prueba en vivo: paneles "Total de Peticiones", "Tasa de Peticiones req/s", "Latencia p50/p95", "Tasa de Errores 5xx", "Versión del Modelo Productivo"
+5. **CI/CD verificado**: 3 workflows en GitHub Actions (`build-fastapi.yml`, `build-training.yml`, `build-streamlit.yml`) corriendo y publicando imágenes en DockerHub bajo `max181818/*` con tag por SHA del commit.
+6. **GitOps verificado**: Argo CD detecta cambios en `kubernetes/` de `main` y los aplica al clúster automáticamente.
+7. **DAG end-to-end** contra la API real (`data-api`): el DAG `real_estate_mlops_pipeline` consume lotes de 90K-230K registros desde `cristiandiaz13/mlops-puj:data-api-pf-v1`, los persiste en `raw_data.raw_batches`, valida schema/calidad/drift, decide si entrenar, invoca `mlops-training` vía `docker run` con `--network=host`, registra en MLflow y promueve/rechaza según regla. *(En proceso de validación al momento de escribir este mensaje — 4 bugs encontrados en código de P1 ya parcheados y commiteados.)*
 
 ## 🔄 Integración entre los 3 sin reuniones
 

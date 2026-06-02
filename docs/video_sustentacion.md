@@ -4,6 +4,15 @@ Distribución sugerida: **3 min P1 + 3 min P2 + 3 min P3 + 1 min cierre conjunto
 
 Para grabar: cada uno comparte pantalla en su parte. Recomendado OBS o Zoom. Pueden grabar por separado y editar.
 
+> **Estado del sistema cuando se grabe** (verificado el 2026-06-01):
+> - Cluster K8s local con todos los pods Running (Airflow 2/2, FastAPI 2/2, Postgres, MLflow, MinIO, Streamlit, Grafana, Prometheus, Locust, Argo CD, data-api).
+> - DAG `real_estate_mlops_pipeline` ejecutándose contra la API real (lotes ~94K-230K registros desde `cristiandiaz13/mlops-puj:data-api-pf-v1`).
+> - Modelo `house-price-model` con alias `production` en MLflow.
+> - Imágenes `max181818/mlops-fastapi:latest` y `max181818/mlops-training:latest` publicadas en DockerHub por GitHub Actions.
+> - Argo CD `Synced + Healthy` siguiendo `main`.
+> - Locust load test ejecutado: **3307 reqs, 0 fallos**, mediana 38 ms, 31.2 req/s sostenido.
+> - **2655+ inferencias** en `raw_data.inference_events`.
+
 ---
 
 ## 0:00 – 0:30 — Introducción (cualquiera, idealmente Daniel)
@@ -157,13 +166,59 @@ Para grabar: cada uno comparte pantalla en su parte. Recomendado OBS o Zoom. Pue
 
 ## Checklist técnico antes de grabar
 
-- [ ] Pasar el smoke test sin errores (`pwsh ./scripts/smoke/run_smoke.ps1`)
-- [ ] Tener postgres, MLflow, MinIO, FastAPI, Streamlit, Grafana, Prometheus, Locust, Airflow y Argo CD todos en `Running`
-- [ ] Tener al menos un modelo `house-price-model v1` con alias `production` en MLflow
-- [ ] Tener al menos 50 inferencias en `raw_data.inference_events` para que el dashboard de Grafana tenga datos
-- [ ] Tener al menos 1 fila en `raw_data.training_audit` para que Streamlit muestre algo
-- [ ] Tener Argo CD UI accesible y mostrando `Synced + Healthy`
-- [ ] Activar el DAG `real_estate_mlops_pipeline` antes de grabar (para que haya runs visibles)
+- [x] Pasar el smoke test sin errores (`pwsh ./scripts/smoke/run_smoke.ps1`)
+- [x] Tener postgres, MLflow, MinIO, FastAPI, Streamlit, Grafana, Prometheus, Locust, Airflow y Argo CD todos en `Running`
+- [x] Tener al menos un modelo `house-price-model v1` con alias `production` en MLflow
+- [x] Tener al menos 50 inferencias en `raw_data.inference_events` (hoy: 2655+)
+- [x] Tener al menos 1 fila en `raw_data.training_audit` para que Streamlit muestre algo
+- [x] Tener Argo CD UI accesible y mostrando `Synced + Healthy`
+- [x] DAG `real_estate_mlops_pipeline` ya desplausado y corriendo
+
+## Comandos preparatorios para el día de la grabación
+
+```powershell
+# 1. Abrir port-forwards en terminales separadas (uno por terminal):
+kubectl -n mlops port-forward svc/fastapi 8000:8000
+kubectl -n mlops port-forward svc/mlflow-service 5000:5000
+kubectl -n mlops port-forward svc/grafana-service 3000:3000
+kubectl -n mlops port-forward svc/streamlit-service 8501:8501
+kubectl -n mlops port-forward svc/airflow 8080:8080
+kubectl -n mlops port-forward svc/locust-service 8089:8089
+kubectl -n argocd port-forward svc/argocd-server 8443:443
+
+# 2. Tener queries SQL preparadas en pgAdmin o un editor:
+kubectl -n mlops port-forward svc/postgres-service 5432:5432
+# Conectar con: mlops_user / mlops_pass / mlops
+
+# 3. URLs para tener abiertas en el navegador:
+#    http://localhost:8000/docs       - Swagger FastAPI
+#    http://localhost:5000            - MLflow UI
+#    http://localhost:3000            - Grafana (admin/admin123)
+#    http://localhost:8501            - Streamlit
+#    http://localhost:8080            - Airflow (admin/admin)
+#    http://localhost:8089            - Locust
+#    https://localhost:8443           - Argo CD (admin/<initial-secret>)
+```
+
+## Queries SQL listas para mostrar en el video
+
+```sql
+-- Mostrar batches ingestados (P1)
+SELECT batch_id, n_records, status, fetch_timestamp
+FROM raw_data.raw_batches
+ORDER BY fetch_timestamp DESC LIMIT 5;
+
+-- Mostrar auditoría del DAG (P1 + Streamlit)
+SELECT batch_id, decision, razon, mae_candidato, mae_productivo, promovido
+FROM raw_data.training_audit
+ORDER BY execution_date DESC LIMIT 5;
+
+-- Mostrar inferencias registradas (P2)
+SELECT model_version, COUNT(*), AVG(latency_ms)::INT AS avg_lat_ms
+FROM raw_data.inference_events
+GROUP BY model_version
+ORDER BY model_version DESC;
+```
 
 ## Tips para que se vea profesional
 
