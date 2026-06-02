@@ -45,8 +45,11 @@ def fetch_batch(batch_number: int, group_id: Optional[int] = None) -> Optional[d
     gid = group_id or DATA_API_GROUP
     session = _session()
 
-    # Probar patrones de endpoint en orden hasta encontrar el correcto
+    # Probar patrones de endpoint en orden hasta encontrar el correcto.
+    # El primero es el que efectivamente usa cristiandiaz13/mlops-puj:data-api-pf-v1
+    # (verificado contra /openapi.json del contenedor).
     candidate_urls = [
+        f"{BASE_URL}/data?group_number={gid}",
         f"{BASE_URL}/data/{gid}/{batch_number}",
         f"{BASE_URL}/data?group_id={gid}&batch={batch_number}",
         f"{BASE_URL}/batch/{gid}/{batch_number}",
