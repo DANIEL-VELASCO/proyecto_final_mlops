@@ -34,6 +34,7 @@ spec:
               command: ["pg_isready", "-U", "mlops"]
             initialDelaySeconds: 10
             periodSeconds: 10
+            timeoutSeconds: 10
             failureThreshold: 5
           livenessProbe:
             exec:
