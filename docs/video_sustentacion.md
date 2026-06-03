@@ -1,340 +1,391 @@
-# Guion — Video de sustentación (10 min máx — YouTube)
+# 🎬 Guion del video de sustentación — Versión final (palabra por palabra)
 
-> **Versión 2 — adaptada al estado real del sistema al 2026-06-02.**
-> Estrategia: mostrar la "foto" del sistema funcional, sin disparar runs de
-> DAG en vivo durante la grabación (el training pesa ~2 GB y satura la VM
-> de WSL2 con todo el clúster arriba). El DAG se muestra como **estructura**
-> en el tab Graph; el resultado del entrenamiento ya está en MLflow y en
-> las tablas.
-
-Distribución: **3 min P1 + 3 min P2 + 3 min P3 + 30s intro + 30s cierre conjunto**.
-
-Cada uno comparte pantalla en su parte. OBS o Zoom Local Recording. Pueden grabar por separado y editar, o todos juntos en una llamada.
+> **10 minutos máximo, YouTube en modo "No listado"**.
+> Distribución: 30s intro + 3 min P1 + 3 min P2 + 3 min P3 + 30s cierre.
+> Cada uno comparte su pantalla en su parte (OBS o Zoom local recording).
 
 ---
 
-## Estado del sistema al momento de grabar (verificado)
+## ✅ ANTES de empezar a grabar
 
-- ✅ 11 pods Running en Kubernetes (`mlops` namespace)
-- ✅ Argo CD `Synced + Healthy` en `argocd` namespace
-- ✅ Modelo `house-price-model v1` con alias `production` en MLflow
-- ✅ FastAPI sirviendo predicciones (verificado: NY 3bd/2ba → ~$234k, LA 4bd/3ba → ~$254k)
-- ✅ 1 fila en `raw_data.training_audit` (batch_1_0000 — primera línea base, promovida)
-- ✅ 2 lotes en `raw_data.raw_batches` (73K + 94K registros bajados de la API real)
-- ✅ **662 inferencias** acumuladas en `raw_data.inference_events`
-- ✅ Grafana dashboard con los 5 paneles activos
-- ✅ Imágenes publicadas en DockerHub: `max181818/mlops-fastapi:latest`, `max181818/mlops-training:latest`
-- ✅ GitHub Actions: 3 workflows verdes (`build-fastapi`, `build-streamlit`, `build-training`)
+Que **uno solo** del equipo ejecute esto y confirme que da OK:
 
----
+```powershell
+# 1. Pods Running (deben ser 11)
+kubectl -n mlops get pods
 
-## URLs y credenciales (NodePorts directos — no necesitan port-forward)
+# 2. FastAPI con modelo cargado
+curl.exe -s http://localhost:30800/health
+# Esperado: {"status":"ok","model_loaded":true,"model_version":"1","model_alias":"production"}
+
+# 3. Datos en tablas
+kubectl -n mlops exec postgres-0 -- psql -U mlops -d mlops -c "SELECT 'raw_batches' AS t, COUNT(*) FROM raw_data.raw_batches UNION ALL SELECT 'training_audit', COUNT(*) FROM raw_data.training_audit UNION ALL SELECT 'inference_events', COUNT(*) FROM raw_data.inference_events;"
+
+# 4. Argo CD port-forward (DEJA ESTA TERMINAL CORRIENDO durante todo el video)
+kubectl -n argocd port-forward svc/argocd-server 8443:443
+```
+
+### 🔐 Credenciales (todos las deben tener a la mano)
 
 | Servicio | URL | Login |
 |---|---|---|
 | Airflow | http://localhost:30808 | `admin` / `admin` |
-| MLflow | http://localhost:30500 | — |
-| FastAPI Swagger | http://localhost:30800/docs | — |
-| Streamlit | http://localhost:30501 | — |
+| MLflow | http://localhost:30500 | sin auth |
+| FastAPI Swagger | http://localhost:30800/docs | sin auth |
+| Streamlit | http://localhost:30501 | sin auth |
 | Grafana | http://localhost:30300 | `admin` / `admin123` |
-| Locust | http://localhost:30089 | — |
+| Locust | http://localhost:30089 | sin auth |
 | MinIO Console | http://localhost:30901 | `minio_admin` / `minio_secret123` |
-| Prometheus | http://localhost:30909 | — |
-| **Argo CD** (port-forward necesario) | https://localhost:8443 | `admin` / `18-MTOevx64mCKU3` |
+| Prometheus | http://localhost:30909 | sin auth |
+| Argo CD | https://localhost:8443 | `admin` / (ver `argocd-initial-admin-secret`) |
 
-> Para Argo CD: `kubectl -n argocd port-forward svc/argocd-server 8443:443` antes de grabar.
+### ⚠️ NO HACER durante el video
 
----
-
-## 0:00 – 0:30 — Introducción (todos)
-
-> "Hola, somos el equipo del proyecto final de MLOps 2026-1: **David Garzón (P1), Juan Pérez (P2), Daniel Velasco (P3)**. Construimos un sistema MLOps de producción para estimar el precio de propiedades inmobiliarias.
->
-> El sistema integra **recolección incremental de datos** con Airflow, **registro de experimentos** en MLflow, **inferencia** en FastAPI, **despliegue declarativo** en Kubernetes con Argo CD, y **observabilidad** con Prometheus, Grafana y Locust.
->
-> Repartimos el video en 3 partes: datos + DAG, ML + servicio de inferencia, e infraestructura."
-
-**Mostrar en pantalla**: README.md del repo + diagrama de arquitectura del PDF.
+1. ❌ **NO darle "Trigger DAG"** en Airflow UI → satura RAM, Docker se cuelga, video arruinado
+2. ❌ **NO abrir más de 5 pestañas** del navegador a la vez
+3. ❌ **NO recargar Argo CD** repetidas veces, es pesado
+4. ❌ **NO ejecutar `docker compose up`** — choca con K8s
 
 ---
 
-## 0:30 – 3:30 — Persona 1 (David Garzón) — Datos y DAG
+# 🎤 0:00 – 0:30 — INTRODUCCIÓN (cualquiera, idealmente Daniel)
 
-### 0:30 – 1:00 — Visión general
+### Qué muestra en pantalla:
+- README.md del repo abierto en VS Code O navegador con el repo de GitHub
 
-> "Yo me encargo del pipeline de datos: consumir la API externa, validar los lotes, decidir cuándo entrenar y dejar todo trazable."
+### Qué dice (palabra por palabra, ~80 palabras):
 
-**Mostrar**: estructura de `airflow/dags/` en el repo (api_client.py, main_pipeline.py, preprocessing.py) + `scripts/init_db.sql`.
+> "Hola, somos el equipo del proyecto final de MLOps 2026-1: **David Garzón, Juan Pérez y Daniel Velasco**. Construimos un sistema de Machine Learning Operations end-to-end para predecir el precio de propiedades inmobiliarias.
+>
+> El sistema integra recolección incremental de datos con Airflow, registro de experimentos en MLflow, inferencia con FastAPI, despliegue en Kubernetes con Argo CD, y observabilidad con Prometheus y Grafana.
+>
+> Vamos a mostrarles el sistema funcionando en 3 partes: datos y DAG, ML y servicio de inferencia, e infraestructura."
 
-### 1:00 – 1:45 — Separación RAW / CLEAN (RF1 + RF2)
+---
 
-> "Cada lote bajado de la API se persiste íntegro como JSONB en `raw_data.raw_batches`. El preprocesamiento limpia y normaliza, y los datos listos para entrenar van a `clean_data.properties`. La trazabilidad es por `batch_id` — puedo reconstruir exactamente qué datos generaron qué modelo."
+# 🟢 0:30 – 3:30 — P1 (David Garzón) — Datos y DAG
 
-**Mostrar en una terminal abierta**, copy-paste estos comandos uno por uno:
+## Ventanas que P1 debe tener abiertas antes de empezar:
+1. **VS Code** en la carpeta del repo
+2. **PowerShell** (no la del port-forward de Argo CD)
+3. **Navegador** en http://localhost:30808 (Airflow), ya logueado (admin/admin)
 
-```bash
+---
+
+## ⏱ 0:30 – 1:00 (30 seg) — Visión general
+
+### Qué hace en pantalla:
+- VS Code visible
+- Expande `airflow/dags/` → se ven 3 archivos: `api_client.py`, `main_pipeline.py`, `preprocessing.py`
+- Click rápido en `scripts/init_db.sql` para mostrar los primeros CREATE TABLE
+
+### Qué dice (palabra por palabra, ~70 palabras):
+
+> "Hola, yo soy **David Garzón**. Me encargo del pipeline de datos: consumir la API externa, validar los lotes y decidir cuándo entrenar.
+>
+> Mi código vive en `airflow/dags/`: el `api_client.py` consume la API, el `main_pipeline.py` define el DAG completo con sus 17 tareas, y el `preprocessing.py` tiene las transformaciones.
+>
+> El DDL de las bases está en `scripts/init_db.sql` y crea los esquemas RAW DATA y CLEAN DATA."
+
+---
+
+## ⏱ 1:00 – 1:45 (45 seg) — Separación RAW/CLEAN
+
+### Qué hace en pantalla:
+- Cambia a **PowerShell**
+- Pega comando #1 (los esquemas):
+
+```powershell
 kubectl -n mlops exec postgres-0 -- psql -U mlops -d mlops -c "\dn"
-# Debe mostrar: clean_data, raw_data, public
-
-kubectl -n mlops exec postgres-0 -- psql -U mlops -d mlops -c \
-  "SELECT batch_id, n_records, status, fetch_timestamp FROM raw_data.raw_batches;"
-# Debe mostrar 2 lotes: batch_1_0000 (73K) y batch_1_0001 (94K)
 ```
 
-### 1:45 – 2:30 — DAG y bifurcaciones (RF3 + RF4)
+- Espera 2 segundos a que muestre la salida
+- Pega comando #2 (los lotes):
 
-> "El DAG `real_estate_mlops_pipeline` tiene 17 tareas con 2 bifurcaciones explícitas:
->
-> - **decide_training** → entrenar o saltar entrenamiento. Las reglas: si es la primera ejecución, si hay drift detectado por Kolmogorov-Smirnov, si aparecieron nuevas categorías con frecuencia ≥5%, o si el volumen creció ≥10%.
->
-> - **decide_promotion** → promover o rechazar. Solo promuevo si el MAE baja al menos 3% **y** el RMSE no empeora más de 1%."
-
-**Mostrar**: Airflow UI → DAGs → `real_estate_mlops_pipeline` → tab **Graph** (la estructura del grafo, sin ejecutar). Apuntar a los 2 nodos de decisión con el cursor.
-
-### 2:30 – 3:30 — Auditoría y resultado del entrenamiento
-
-> "Cada decisión queda en `raw_data.training_audit` para que Streamlit muestre el historial. En este momento tenemos una fila: el primer lote entrenó y se promovió porque no existía modelo productivo previo — es la línea base."
-
-**Mostrar**, en la terminal:
-
-```bash
-kubectl -n mlops exec postgres-0 -- psql -U mlops -d mlops -c \
-  "SELECT batch_id, decision, LEFT(reason,60), promoted, model_version, status FROM raw_data.training_audit;"
-# Debe mostrar batch_1_0000 | train | "Primera ejecucion..." | t | 1 | completed
+```powershell
+kubectl -n mlops exec postgres-0 -- psql -U mlops -d mlops -c "SELECT batch_id, n_records, status, fetch_timestamp FROM raw_data.raw_batches ORDER BY fetch_timestamp;"
 ```
+
+### Qué dice (palabra por palabra, ~75 palabras):
+
+> "Acá veo los esquemas separados que cumplen el RF2 del PDF: `raw_data` con los lotes crudos y `clean_data` con los datos procesados. La trazabilidad es obligatoria.
+>
+> Acá veo los 2 lotes que ya bajé de la API real del profesor. El primero con 73 mil registros, el segundo con 94 mil. Cada uno se persiste como JSONB con su batch_id único. Puedo reconstruir exactamente qué datos generaron qué modelo."
 
 ---
 
-## 3:30 – 6:30 — Persona 2 (Juan Pérez) — Entrenamiento, MLflow y FastAPI
+## ⏱ 1:45 – 2:30 (45 seg) — DAG y bifurcaciones
 
-### 3:30 – 4:00 — Visión general
+### Qué hace en pantalla:
+- Cambia al **navegador** en Airflow (http://localhost:30808)
+- Click en el DAG `real_estate_mlops_pipeline`
+- Click en la pestaña **Graph**
+- Apunta con el cursor (sin clickear) a `decide_training`, después a `decide_promotion`
 
-> "Yo me encargo del Machine Learning: el pipeline de entrenamiento como imagen Docker reutilizable, el registro en MLflow, y el servicio de inferencia con FastAPI que carga el modelo productivo sin redespliegue."
+### Qué dice (palabra por palabra, ~90 palabras):
 
-**Mostrar**: estructura de `training/` (Dockerfile, entrypoint.sh, train.py, evaluate.py, promote.py) y `fastapi/` (main.py, model_loader.py, inference_log.py).
-
-### 4:00 – 4:45 — MLflow + promoción (RF5 + RF6)
-
-> "Entreno un `RandomForestRegressor` con `ColumnTransformer` que usa `OneHotEncoder(handle_unknown='ignore')`. Esto es clave: si llega una ciudad nueva, el pipeline **no se rompe** — exactamente lo que pide el RF3 del PDF.
+> "Acá está el DAG corriendo en Airflow. Tiene 17 tareas con dos bifurcaciones explícitas que cumplen el RF4 del PDF.
 >
-> Registro en MLflow: parámetros, métricas MAE/RMSE/MAPE/R² para train/val/test, artefactos como gráfico de residuos, y el modelo como sklearn Pipeline. La promoción es por **alias** — `production` apunta a la versión actual del modelo, así no quemo rutas locales en FastAPI."
-
-**Mostrar**: MLflow UI (http://localhost:30500) → Experiments → `house-price` → run `8c5459b0...` → tab Parameters + Metrics + Artifacts. Luego: Models → `house-price-model` → v1 → alias `production`.
-
-### 4:45 – 5:45 — FastAPI con recarga sin redespliegue (RF7 + RF8)
-
-> "FastAPI carga el modelo desde MLflow por alias. Cada 30 segundos un poller en background consulta si cambió la versión productiva — si cambia, la recarga con un lock thread-safe; si la nueva carga falla, mantiene el modelo previo como fallback.
+> La primera bifurcación es `decide_training`. Las reglas son: si es la primera ejecución, si hay drift detectado por Kolmogorov-Smirnov, si aparecieron nuevas categorías con frecuencia mayor al cinco por ciento, o si el volumen creció más del diez por ciento.
 >
-> También expone `/reload-model` protegido por un token X-Reload-Token para forzar recarga manual.
->
-> Cada inferencia se persiste en `raw_data.inference_events` con `request_id` UUID, payload JSONB, predicción, versión del modelo y latencia."
+> La segunda bifurcación es `decide_promotion`. Solo promuevo si el MAE baja al menos tres por ciento y el RMSE no empeora más de uno por ciento."
 
-**Mostrar**:
-
-1. Swagger en http://localhost:30800/docs
-2. Expandir `POST /predict` → Try it out → pegar:
-   ```json
-   {"brokered_by":"agency_42","status":"for_sale","bed":3,"bath":2,"acre_lot":0.25,"street":"street_100","city":"New York","state":"NY","zip_code":10001,"house_size":1800,"prev_sold_date":null}
-   ```
-3. Ejecutar → debe devolver `price ≈ 234000`, `model_version: "1"`, `model_alias: "production"`, `inference_id` UUID
-4. En la terminal, mostrar que se persistió:
-   ```bash
-   kubectl -n mlops exec postgres-0 -- psql -U mlops -d mlops -c \
-     "SELECT request_id, model_version, prediction::INT, latency_ms FROM raw_data.inference_events ORDER BY occurred_at DESC LIMIT 3;"
-   ```
-
-### 5:45 – 6:30 — Métricas Prometheus (RF10)
-
-> "Para observabilidad expongo `/metrics` con las series que el dashboard de Grafana ya consulta:
-> - `http_requests_total{handler, method, status}`
-> - `http_request_duration_seconds_bucket{le}`
-> - `model_version_info{version, alias, model_name}` — gauge custom que dice qué modelo está cargado en cada momento."
-
-**Mostrar**:
-
-```bash
-curl -s http://localhost:30800/metrics | grep -E "model_version_info|http_requests_total|http_request_duration_seconds_bucket" | head -20
-```
+> ⚠️ **NO LE DEN CLICK A "TRIGGER DAG"** — esto es lo más importante. Solo muestren el grafo.
 
 ---
 
-## 6:30 – 9:30 — Persona 3 (Daniel Velasco) — K8s, GitOps, UI y Observabilidad
+## ⏱ 2:30 – 3:30 (60 seg) — Auditoría y resultado
 
-### 6:30 – 7:00 — Visión general
+### Qué hace en pantalla:
+- Cambia a **PowerShell**
+- Pega comando #3:
 
-> "Yo me encargo de la infraestructura, CI/CD, observabilidad e interfaz de usuario. Cada componente corre en Kubernetes desde manifiestos versionados en `kubernetes/`, y Argo CD sincroniza el repo con el clúster automáticamente."
+```powershell
+kubectl -n mlops exec postgres-0 -- psql -U mlops -d mlops -c "SELECT batch_id, decision, LEFT(reason,55) AS razon, promoted, model_version, status FROM raw_data.training_audit ORDER BY execution_date;"
+```
 
-**Mostrar**: árbol de `kubernetes/` en el repo + estado del clúster:
+### Qué dice (palabra por palabra, ~90 palabras):
 
-```bash
+> "Cada decisión queda persistida en la tabla `raw_data.training_audit`. Acá veo el resultado: el lote `batch_1_0000` entrenó porque no había modelo productivo previo, se promovió como línea base, y el modelo registrado es la versión 1.
+>
+> Esta misma tabla la lee Streamlit para mostrar el historial al usuario final.
+>
+> Con esto cumplo el RF3 y la sección de Datos del rubric: separación RAW y CLEAN, validación, decisión de entrenamiento con razón justificada, y auditoría completa.
+>
+> Le paso la palabra a Juan que va a mostrar el modelo en MLflow y la API de inferencia."
+
+---
+
+# 🟣 3:30 – 6:30 — P2 (Juan Pérez) — ML y FastAPI
+
+## Ventanas que P2 debe tener abiertas antes de empezar:
+1. **VS Code** en la carpeta del repo (con `training/` y `fastapi/` colapsados)
+2. **Navegador** con 2 pestañas: http://localhost:30500 (MLflow) y http://localhost:30800/docs (Swagger)
+3. **PowerShell**
+
+---
+
+## ⏱ 3:30 – 4:00 (30 seg) — Visión general
+
+### Qué hace en pantalla:
+- **VS Code** visible
+- Segundo 0-15: expande `training/` → se ven 6 archivos (`Dockerfile`, `entrypoint.sh`, `train.py`, `evaluate.py`, `promote.py`, `preprocess.py`)
+- Segundo 15-25: colapsa `training/`, expande `fastapi/` → se ven 5 archivos (`main.py`, `model_loader.py`, `inference_log.py`, `schemas.py`, `preprocess.py`)
+- Segundo 25-30: cambia al navegador con MLflow ya abierto
+
+### Qué dice (palabra por palabra, ~70 palabras):
+
+> "Hola, yo soy **Juan**, encargado de Machine Learning. Tengo dos componentes en el repositorio.
+>
+> En la carpeta `training` empaco una imagen Docker reutilizable con tres subcomandos: `train`, `evaluate` y `promote` — el DAG la invoca con cada uno por separado.
+>
+> En la carpeta `fastapi` está el servicio de inferencia, con un cargador de modelo dinámico que consulta MLflow.
+>
+> Ahora se los muestro corriendo en vivo."
+
+---
+
+## ⏱ 4:00 – 4:45 (45 seg) — MLflow en vivo
+
+### Qué hace en pantalla:
+- **Navegador en MLflow** (http://localhost:30500)
+- Click en pestaña **Experiments** (arriba)
+- Click en el experimento `house-price`
+- Click en el run que aparece (uno solo, `candidate-batch_1_0000`)
+- Click rápido por las pestañas: **Parameters** → **Metrics** → **Artifacts** (1-2 seg en cada una)
+- Click en pestaña **Models** (arriba)
+- Click en `house-price-model` → mostrar **Version 1** con etiqueta **`@production`**
+
+### Qué dice (palabra por palabra, ~95 palabras):
+
+> "Acá está MLflow. Entreno un `RandomForestRegressor` con un `ColumnTransformer` que usa `OneHotEncoder` con `handle_unknown='ignore'`. Esto es muy importante porque si llega una ciudad nueva en producción, el pipeline **no se rompe** — exactamente lo que pide el RF3 del PDF.
+>
+> Registro todo: parámetros, métricas MAE, RMSE, MAPE y R cuadrado para train, val y test, artefactos como el gráfico de residuos, y el modelo serializado.
+>
+> Acá en Models veo el `house-price-model` versión 1 con el alias `production`. Cuando entrene una versión 2 que mejore las métricas, el alias se mueve automáticamente."
+
+---
+
+## ⏱ 4:45 – 5:45 (60 seg) — FastAPI Swagger en vivo
+
+### Qué hace en pantalla:
+- **Navegador en Swagger** (http://localhost:30800/docs)
+- Mostrar los endpoints listados
+- Click en `GET /health` → **Try it out** → **Execute** → mostrar respuesta
+- Click en `POST /predict` → **Try it out** → el textbox tiene JSON precargado (lo deja como está) → **Execute**
+- Mostrar la respuesta con `price`, `model_version`, `inference_id`
+- Cambia a **PowerShell**, pega:
+
+```powershell
+kubectl -n mlops exec postgres-0 -- psql -U mlops -d mlops -c "SELECT request_id, model_version, prediction::INT AS price, latency_ms FROM raw_data.inference_events ORDER BY occurred_at DESC LIMIT 3;"
+```
+
+### Qué dice (palabra por palabra, ~120 palabras):
+
+> "FastAPI tiene cuatro endpoints documentados con Swagger.
+>
+> El endpoint `/health` me dice qué modelo está cargado: versión 1, alias production. Importante: FastAPI **lee esto desde MLflow en vivo**, no es un valor quemado en código. Esto cumple el RF7.
+>
+> El endpoint `/predict` recibe los datos de una propiedad y devuelve el precio estimado. Acá veo el resultado: precio estimado de aproximadamente 234 mil dólares, versión 1 del modelo, con un `inference_id` único.
+>
+> Y acá en la base de datos veo que la predicción que acabo de hacer **ya está persistida** en `raw_data.inference_events` con su UUID, versión del modelo y latencia. Esto cumple el RF8 del PDF."
+
+---
+
+## ⏱ 5:45 – 6:30 (45 seg) — Métricas Prometheus
+
+### Qué hace en pantalla:
+- **PowerShell**, pega:
+
+```powershell
+curl.exe -s http://localhost:30800/metrics | Select-String -Pattern "model_version_info|http_requests_total" | Select-Object -First 10
+```
+
+### Qué dice (palabra por palabra, ~95 palabras):
+
+> "Para observabilidad expongo `/metrics` con las series que Prometheus consume.
+>
+> Las tres más importantes son: `http_requests_total` con etiquetas de handler, método y status para contar peticiones y errores; `http_request_duration_seconds_bucket` para latencias p50, p95, p99; y `model_version_info`, un gauge custom que dice exactamente qué versión del modelo está cargada en cada momento.
+>
+> Con esto cumplo el RF10 del PDF.
+>
+> Le paso la palabra a Daniel para que muestre Argo CD, Streamlit, Locust y Grafana."
+
+---
+
+# 🔵 6:30 – 9:30 — P3 (Daniel Velasco) — Infra, GitOps, UI
+
+## Ventanas que P3 debe tener abiertas antes de empezar:
+1. **VS Code** en la carpeta `kubernetes/` del repo
+2. **PowerShell**
+3. **Navegador** con 5 pestañas: GitHub Actions, https://localhost:8443 (Argo CD), http://localhost:30501 (Streamlit), http://localhost:30089 (Locust), http://localhost:30300 (Grafana)
+
+---
+
+## ⏱ 6:30 – 7:00 (30 seg) — Visión general
+
+### Qué hace en pantalla:
+- **VS Code** mostrando el árbol de `kubernetes/`
+- Después cambia a **PowerShell** y pega:
+
+```powershell
 kubectl -n mlops get pods
-# Debe mostrar 11 pods Running
-
-kubectl -n mlops get svc | grep nodeport
-# Debe mostrar los NodePorts: 30808, 30500, 30800, 30501, 30300, 30089, 30900, 30909
 ```
 
-### 7:00 – 7:45 — GitHub Actions + Argo CD (CI/CD + GitOps)
+### Qué dice (palabra por palabra, ~70 palabras):
 
-> "Tres workflows construyen y publican imágenes en DockerHub al hacer push a `main`: `build-fastapi`, `build-streamlit` y `build-training`. Etiquetadas por commit SHA para reproducibilidad.
+> "Hola, yo soy **Daniel**, encargado de la infraestructura, CI/CD, observabilidad e interfaz de usuario.
 >
-> Argo CD vive en su propio namespace. La Application `mlops-proyecto-final` monitorea el repo: cualquier cambio en `kubernetes/` se aplica al clúster con `prune: true` y `selfHeal: true`. Esto es GitOps puro — no hay `kubectl apply` manual."
-
-**Mostrar**:
-
-1. GitHub → tab Actions → workflows verdes
-2. DockerHub → `max181818/mlops-fastapi` y `max181818/mlops-training` con tags por SHA
-3. Argo CD UI en https://localhost:8443 (admin/`18-MTOevx64mCKU3`) → Application `mlops-proyecto-final` → **Synced + Healthy** + lista de recursos sincronizados
-
-### 7:45 – 8:30 — Streamlit (RF9)
-
-> "Streamlit tiene 2 secciones:
-> - **Inferencia**: formulario que consume `POST /predict` y muestra precio + versión del modelo
-> - **Historial**: tabla leída directamente de `raw_data.training_audit` con cada lote procesado, su decisión y razón
->
-> Acá vemos el resultado real del primer entrenamiento."
-
-**Mostrar**: http://localhost:30501 → llenar el formulario con datos de una propiedad → ver predicción + `model_version: 1`. Luego ir a tab Historial → ver la fila de batch_1_0000.
-
-### 8:30 – 9:30 — Locust + Grafana
-
-> "Para demostrar observabilidad bajo carga, lanzo Locust con **50 usuarios concurrentes** durante 60 segundos contra `/predict`. Ya tenemos **662 inferencias** acumuladas de pruebas anteriores."
-
-**Mostrar**:
-
-1. http://localhost:30089 → Number of users: **50**, Spawn rate: **5**, Host: `http://fastapi:8000`, Run time: **60s** → Start swarming
-2. Mientras corre, abrir http://localhost:30300 (admin/admin123) → dashboard `MLOps FastAPI Dashboard` → ver los 5 paneles en vivo:
-   - Total de Peticiones
-   - Tasa de Peticiones req/s
-   - Latencia p50/p95
-   - Tasa de Errores 5xx
-   - Versión del Modelo Productivo
-3. En la terminal, demostrar las inferencias persistidas:
-   ```bash
-   kubectl -n mlops exec postgres-0 -- psql -U mlops -d mlops -c \
-     "SELECT model_version, COUNT(*) AS total, ROUND(AVG(latency_ms)) AS avg_ms FROM raw_data.inference_events GROUP BY model_version;"
-   # Debe mostrar v1 con cientos de inferencias
-   ```
+> Cada componente corre en Kubernetes desde manifiestos versionados en la carpeta `kubernetes/` del repo. Acá tengo los 11 pods del sistema corriendo: Airflow con webserver y scheduler, FastAPI con 2 réplicas, Postgres, MLflow, MinIO, Streamlit, Grafana, Prometheus, Locust y la data-api del profesor."
 
 ---
 
-## 9:30 – 10:00 — Cierre conjunto
+## ⏱ 7:00 – 7:45 (45 seg) — GitHub Actions + Argo CD
 
-> **P3 (Daniel)**: "Recapitulando: tenemos un sistema MLOps **end-to-end** desplegado en Kubernetes con GitOps, donde un evento de datos entra por Airflow, pasa por validaciones de schema, calidad, drift y nuevas categorías, decide si entrenar, y si entrena, compara contra el productivo."
->
-> **P2 (Juan)**: "Los modelos quedan versionados en MLflow con artefactos, métricas y trazabilidad completa al lote que los generó. FastAPI los carga sin redespliegue. Las inferencias quedan registradas para futuras iteraciones del modelo."
->
-> **P1 (David)**: "El despliegue es **GitOps con Argo CD**, las imágenes vienen de **GitHub Actions** y se publican en **DockerHub**. Todo el sistema es reproducible desde el repo. Gracias por su atención."
+### Qué hace en pantalla:
+1. **Navegador** → GitHub → tab Actions → mostrar workflows verdes
+2. Cambia a la pestaña de **Argo CD** (https://localhost:8443)
+3. Logueado, click en Application `mlops-proyecto-final`
+4. Mostrar el estado **Synced** y **Healthy** + lista de recursos sincronizados
 
-**Pantalla final**: README.md con link al repo: `github.com/DANIEL-VELASCO/proyecto_final_mlops`.
+### Qué dice (palabra por palabra, ~100 palabras):
+
+> "Tengo tres workflows en GitHub Actions que construyen y publican las imágenes en DockerHub al hacer push a main: `build-fastapi`, `build-streamlit` y `build-training`. Etiquetadas por commit SHA para reproducibilidad.
+>
+> Argo CD vive en su propio namespace. La Application `mlops-proyecto-final` monitorea el repo: cualquier cambio en `kubernetes/` se aplica al clúster automáticamente, con `prune: true` y `selfHeal: true`.
+>
+> Acá veo el estado **Synced + Healthy** con todos los recursos sincronizados. Esto es GitOps puro — no hay `kubectl apply` manual. Cumple el RF de GitOps del PDF."
 
 ---
 
-## ⚠️ Cosas que NO hacer durante la grabación
+## ⏱ 7:45 – 8:30 (45 seg) — Streamlit
 
-1. **NO disparar un nuevo DAG run en vivo.** El training task ejecuta `docker run` con la imagen `mlops-training`, lo cual consume ~2 GB de RAM extra y satura la VM de WSL2 con todo el clúster arriba. Resultado: OOMKilled cascading (mlflow, fastapi, grafana). En el video se ve fatal. Mostrar el grafo en tab Graph (estructura) y los resultados ya persistidos en BD/MLflow.
+### Qué hace en pantalla:
+- **Navegador** en Streamlit (http://localhost:30501)
+- Llenar el formulario con datos de una propiedad (ej: New York, 3 bed, 2 bath, 1800 sqft)
+- Click en "Predecir"
+- Mostrar el precio + versión del modelo
+- Click en la pestaña **Historial** → mostrar la tabla con `batch_1_0000`
 
-2. **NO recargar Argo CD repetidas veces.** La UI carga lento bajo carga; abrirla una vez y dejarla.
+### Qué dice (palabra por palabra, ~85 palabras):
 
-3. **NO abrir muchas pestañas del navegador**. Cada pestaña de Grafana/Airflow consume RAM. Idealmente tener una sola ventana con varias pestañas, cerrar lo demás.
-
-4. **NO ejecutar `docker compose up`**. El sistema corre en K8s, no en compose. Si lo levantan, chocan puertos.
+> "Streamlit tiene dos secciones obligatorias del RF9.
+>
+> La primera es **Inferencia**: el usuario llena un formulario, consume FastAPI y ve la predicción más la versión del modelo utilizada. Acá veo el precio estimado de unos 234 mil dólares con la versión 1.
+>
+> La segunda es **Historial de entrenamiento y despliegue**: muestra cada lote procesado con la decisión, la razón, y si fue promovido o rechazado. Acá veo `batch_1_0000`, decisión `train`, promovido como línea base."
 
 ---
 
-## ✅ Checklist técnico ANTES de empezar a grabar
+## ⏱ 8:30 – 9:30 (60 seg) — Locust + Grafana
 
-Ejecutar estos comandos y verificar que cada uno responde OK:
+### Qué hace en pantalla:
+1. **Navegador en Locust** (http://localhost:30089)
+2. Configurar: Number of users = **50**, Spawn rate = **5**, Host = `http://fastapi:8000`
+3. Click **Start swarming**
+4. Mostrar el gráfico de RPS subiendo durante 5-10 segundos
+5. Cambia a **Grafana** (http://localhost:30300)
+6. Abrir dashboard `MLOps FastAPI Dashboard`
+7. Mostrar los paneles en vivo: Total de Peticiones, RPS, Latencia, Tasa de Errores, Versión del Modelo
+8. Cambia a **PowerShell** y pega:
 
-```bash
-# 1. Todos los pods Running
-kubectl -n mlops get pods
-# Esperado: 11 pods con 1/1 o 2/2 Running
-
-# 2. Argo CD Synced + Healthy
-kubectl -n argocd get application mlops-proyecto-final
-# Esperado: Synced  Healthy
-
-# 3. FastAPI sirviendo modelo v1
-curl -s http://localhost:30800/health
-# Esperado: {"status":"ok","model_loaded":true,"model_version":"1","model_alias":"production"}
-
-# 4. MLflow tiene v1 con alias production
-curl -s "http://localhost:30500/api/2.0/mlflow/registered-models/alias?name=house-price-model&alias=production" | head -c 200
-# Esperado: JSON con "version": "1"
-
-# 5. Tablas con datos
-kubectl -n mlops exec postgres-0 -- psql -U mlops -d mlops -c \
-  "SELECT 'raw_batches' AS t, COUNT(*) FROM raw_data.raw_batches UNION ALL SELECT 'training_audit', COUNT(*) FROM raw_data.training_audit UNION ALL SELECT 'inference_events', COUNT(*) FROM raw_data.inference_events;"
-# Esperado: raw_batches >=1, training_audit >=1, inference_events >=100
-
-# 6. Streamlit responde
-curl -sS -o /dev/null -w "%{http_code}\n" http://localhost:30501/_stcore/health
-# Esperado: 200
-
-# 7. Grafana responde
-curl -sS -o /dev/null -w "%{http_code}\n" http://localhost:30300/api/health
-# Esperado: 200
-
-# 8. Argo CD port-forward activo (abrir en otra terminal y dejar)
-kubectl -n argocd port-forward svc/argocd-server 8443:443
+```powershell
+kubectl -n mlops exec postgres-0 -- psql -U mlops -d mlops -c "SELECT model_version, COUNT(*) AS total, ROUND(AVG(latency_ms)) AS avg_ms FROM raw_data.inference_events GROUP BY model_version;"
 ```
 
-Si todos están verdes → grabar.
+### Qué dice (palabra por palabra, ~135 palabras):
+
+> "Para demostrar observabilidad bajo carga, lanzo Locust con 50 usuarios concurrentes contra `/predict`.
+>
+> Acá en el dashboard de Grafana veo los 5 paneles del `MLOps FastAPI Dashboard`: Total de Peticiones acumuladas, Tasa de Peticiones por segundo, Latencia p50 y p95, Tasa de Errores 5xx que se mantiene en cero, y la Versión del Modelo Productivo que indica que está cargada la versión 1.
+>
+> Y acá en la base de datos confirmo que las inferencias quedaron persistidas en `raw_data.inference_events` — más de 600 inferencias con su versión y latencia.
+>
+> Con esto cumplo el RF10 del PDF. Esto cierra mi parte."
 
 ---
 
-## Tips para que se vea profesional
+# 🟡 9:30 – 10:00 — CIERRE CONJUNTO
 
-- **Practicar una vez completa antes de grabar** — el video tiene tope de 10 min.
-- **Compartir solo la ventana relevante**, no todo el escritorio.
-- **Tener las URLs verificadas** en pestañas separadas justo antes de empezar.
-- **Voz clara**, audio sin ruido de fondo (revisar micrófono).
-- **Si una demo falla** en vivo (timeout, etc), pasen a la siguiente sección — no insistan en debug.
-- **El video se sube a YouTube como "No listado"** para que el profesor pueda verlo con el link.
-- **Cerrar Discord, Spotify, browsers extras** — Docker Desktop ya está al filo de la RAM.
+### Qué muestra en pantalla:
+- README.md con link al repo: `github.com/DANIEL-VELASCO/proyecto_final_mlops`
 
----
+### Qué dicen (palabra por palabra, uno tras otro):
 
-## Apéndice: Queries SQL listas para mostrar
-
-```sql
--- Lotes ingestados (P1, sección 1:00)
-SELECT batch_id, n_records, status, fetch_timestamp
-FROM raw_data.raw_batches
-ORDER BY fetch_timestamp DESC;
-
--- Auditoría del DAG (P1, sección 2:30)
-SELECT batch_id, decision, LEFT(reason,60), promoted, model_version, status
-FROM raw_data.training_audit
-ORDER BY execution_date DESC;
-
--- Inferencias persistidas (P2, sección 4:45)
-SELECT request_id, model_version, prediction::INT, latency_ms
-FROM raw_data.inference_events
-ORDER BY occurred_at DESC LIMIT 5;
-
--- Total de inferencias por modelo (P3, sección 8:30)
-SELECT model_version, COUNT(*) AS total, ROUND(AVG(latency_ms)) AS avg_ms
-FROM raw_data.inference_events
-GROUP BY model_version;
-
--- Schemas separados RAW vs CLEAN (P1, sección 1:00)
-\dn
-\dt raw_data.*
-\dt clean_data.*
-```
+> **Daniel**: "Recapitulando: tenemos un sistema MLOps end-to-end desplegado en Kubernetes con GitOps, donde un evento de datos entra por Airflow, pasa por validaciones, decide si entrenar, y si entrena, compara contra el productivo."
+>
+> **Juan**: "Los modelos quedan versionados en MLflow con trazabilidad completa. FastAPI los carga sin redespliegue. Las inferencias quedan registradas para futuras iteraciones."
+>
+> **David**: "El despliegue es GitOps con Argo CD, las imágenes vienen de GitHub Actions y se publican en DockerHub. Todo el sistema es reproducible desde el repo."
+>
+> **Juntos (o uno solo)**: "Gracias por su atención. Repositorio: `github.com/DANIEL-VELASCO/proyecto_final_mlops`."
 
 ---
 
-## Apéndice: Si algo falla durante la grabación
+# 🆘 Si algo falla durante la grabación
 
-| Problema | Solución rápida |
+| Problema | Solución rápida (15 segundos) |
 |---|---|
-| Pod en Error / OOMKilled | `kubectl -n mlops delete pod <nombre>` → reaparece en 30s |
+| Pod en `Error` u `OOMKilled` | `kubectl -n mlops delete pod <nombre>` → reaparece en 30s |
 | FastAPI devuelve 503 | `kubectl -n mlops delete pod -l app=fastapi` |
-| Streamlit muestra "Connection refused" | `kubectl -n mlops delete pod -l app=streamlit` |
-| Grafana sin datos | Esperar 15s a que Prometheus haga scrape; refrescar dashboard |
-| MLflow UI no carga | `kubectl -n mlops delete pod -l app=mlflow` |
-| Argo CD UI sin sesión | `kubectl -n argocd port-forward svc/argocd-server 8443:443` en otra terminal |
-| Docker daemon colgado | Restart Docker Desktop (~2 min); todos los pods reaparecen solos |
+| Streamlit "Connection refused" | `kubectl -n mlops delete pod -l app=streamlit` |
+| Grafana sin datos | Esperar 15s y refrescar el dashboard |
+| Argo CD UI cerrada | Volver a abrir terminal con `kubectl -n argocd port-forward svc/argocd-server 8443:443` |
+| Docker daemon colgado | Restart Docker Desktop → esperar 2 min → todos los pods reaparecen |
+
+> **Si algo se rompe en VIVO**: no entren en pánico, salten al siguiente bloque y digan "acá hubo un timeout pero el resultado se puede ver en la base de datos / en MLflow" y muestren eso.
+
+---
+
+# 📋 Checklist FINAL (5 min antes de empezar a grabar)
+
+- [ ] Cerrar Chrome, Discord, Spotify, IDE extra
+- [ ] Confirmar `.wslconfig` con `memory=8GB`
+- [ ] Correr los 4 chequeos de la sección "ANTES de empezar a grabar"
+- [ ] Terminal con `kubectl -n argocd port-forward svc/argocd-server 8443:443` corriendo
+- [ ] Cada persona tiene sus ventanas listas (ver secciones P1/P2/P3)
+- [ ] Cada persona tiene su .txt con los comandos copy-paste a la mano
+- [ ] OBS o Zoom listo, micrófono probado
+- [ ] Practicar UNA VEZ completa antes de grabar
+
+**Si los 4 chequeos están verdes → dale Record. Suerte 🎬**
