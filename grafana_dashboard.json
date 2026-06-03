@@ -1,0 +1,165 @@
+{
+  "overwrite": true,
+  "folderId": 0,
+  "dashboard": {
+    "title": "MLOps — Inferencia Inmobiliaria",
+    "uid": "mlops-fastapi",
+    "refresh": "10s",
+    "schemaVersion": 38,
+    "tags": ["mlops","fastapi"],
+    "style": "dark",
+    "timezone": "browser",
+    "time": {"from": "now-30m", "to": "now"},
+    "panels": [
+      {
+        "id": 1, "title": "Total Peticiones", "type": "stat",
+        "gridPos": {"h": 4, "w": 4, "x": 0, "y": 0},
+        "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background", "graphMode": "area"},
+        "fieldConfig": {"defaults": {"color": {"mode": "fixed", "fixedColor": "blue"}, "unit": "short"}},
+        "targets": [{"expr": "sum(http_requests_total{job=\"fastapi\"})", "legendFormat": "Total"}]
+      },
+      {
+        "id": 2, "title": "Peticiones / segundo", "type": "stat",
+        "gridPos": {"h": 4, "w": 4, "x": 4, "y": 0},
+        "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background", "graphMode": "area"},
+        "fieldConfig": {"defaults": {"color": {"mode": "fixed", "fixedColor": "green"}, "unit": "reqps", "decimals": 2}},
+        "targets": [{"expr": "sum(rate(http_requests_total{job=\"fastapi\"}[1m]))", "legendFormat": "RPS"}]
+      },
+      {
+        "id": 3, "title": "Latencia Media (ms)", "type": "stat",
+        "gridPos": {"h": 4, "w": 4, "x": 8, "y": 0},
+        "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background", "graphMode": "area"},
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms", "decimals": 1,
+            "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 200}, {"color": "red", "value": 500}]},
+            "color": {"mode": "thresholds"}
+          }
+        },
+        "targets": [{"expr": "1000 * sum(rate(http_request_duration_seconds_sum{job=\"fastapi\"}[1m])) / sum(rate(http_request_duration_seconds_count{job=\"fastapi\"}[1m]))", "legendFormat": "Latencia"}]
+      },
+      {
+        "id": 4, "title": "Tasa de Errores 5xx", "type": "stat",
+        "gridPos": {"h": 4, "w": 4, "x": 12, "y": 0},
+        "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background", "graphMode": "area"},
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit", "decimals": 2,
+            "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 0.01}, {"color": "red", "value": 0.05}]},
+            "color": {"mode": "thresholds"}
+          }
+        },
+        "targets": [{"expr": "sum(rate(http_requests_total{job=\"fastapi\",status=~\"5..\"}[1m])) / sum(rate(http_requests_total{job=\"fastapi\"}[1m]))", "legendFormat": "Errores"}]
+      },
+      {
+        "id": 5, "title": "CPU FastAPI", "type": "stat",
+        "gridPos": {"h": 4, "w": 4, "x": 16, "y": 0},
+        "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background", "graphMode": "area"},
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit", "decimals": 1,
+            "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 0.5}, {"color": "red", "value": 0.8}]},
+            "color": {"mode": "thresholds"}
+          }
+        },
+        "targets": [{"expr": "rate(process_cpu_seconds_total{job=\"fastapi\"}[1m])", "legendFormat": "CPU"}]
+      },
+      {
+        "id": 6, "title": "RAM FastAPI", "type": "stat",
+        "gridPos": {"h": 4, "w": 4, "x": 20, "y": 0},
+        "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background", "graphMode": "area"},
+        "fieldConfig": {"defaults": {"unit": "bytes", "color": {"mode": "fixed", "fixedColor": "purple"}}},
+        "targets": [{"expr": "process_resident_memory_bytes{job=\"fastapi\"}", "legendFormat": "RAM"}]
+      },
+      {
+        "id": 10, "title": "TRÁFICO EN TIEMPO REAL", "type": "row",
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 4}, "collapsed": false
+      },
+      {
+        "id": 7, "title": "Peticiones por Endpoint (req/s)", "type": "timeseries",
+        "gridPos": {"h": 9, "w": 12, "x": 0, "y": 5},
+        "options": {"tooltip": {"mode": "multi"}, "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["mean","max","lastNotNull"]}},
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "custom": {"lineWidth": 2, "fillOpacity": 15, "gradientMode": "opacity", "spanNulls": true, "showPoints": "never"},
+            "color": {"mode": "palette-classic"}
+          }
+        },
+        "targets": [
+          {"expr": "sum(rate(http_requests_total{job=\"fastapi\",status=~\"2..\"}[1m])) by (handler)", "legendFormat": "{{handler}} OK"},
+          {"expr": "sum(rate(http_requests_total{job=\"fastapi\",status=~\"[45]..\"}[1m])) by (handler)", "legendFormat": "{{handler}} ERR"}
+        ]
+      },
+      {
+        "id": 8, "title": "Latencia p50 / p95 / p99 (ms)", "type": "timeseries",
+        "gridPos": {"h": 9, "w": 12, "x": 12, "y": 5},
+        "options": {"tooltip": {"mode": "multi"}, "legend": {"displayMode": "table", "placement": "bottom", "calcs": ["mean","max","lastNotNull"]}},
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ms",
+            "custom": {"lineWidth": 2, "fillOpacity": 10, "gradientMode": "opacity", "spanNulls": true, "showPoints": "never"}
+          },
+          "overrides": [
+            {"matcher": {"id": "byName", "options": "p50"}, "properties": [{"id": "color", "value": {"fixedColor": "green", "mode": "fixed"}}]},
+            {"matcher": {"id": "byName", "options": "p95"}, "properties": [{"id": "color", "value": {"fixedColor": "orange", "mode": "fixed"}}]},
+            {"matcher": {"id": "byName", "options": "p99"}, "properties": [{"id": "color", "value": {"fixedColor": "red", "mode": "fixed"}}]}
+          ]
+        },
+        "targets": [
+          {"expr": "1000 * histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket{job=\"fastapi\"}[1m])) by (le))", "legendFormat": "p50"},
+          {"expr": "1000 * histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{job=\"fastapi\"}[1m])) by (le))", "legendFormat": "p95"},
+          {"expr": "1000 * histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{job=\"fastapi\"}[1m])) by (le))", "legendFormat": "p99"}
+        ]
+      },
+      {
+        "id": 11, "title": "ERRORES Y DISTRIBUCIÓN", "type": "row",
+        "gridPos": {"h": 1, "w": 24, "x": 0, "y": 14}, "collapsed": false
+      },
+      {
+        "id": 9, "title": "Tasa de Errores en el Tiempo", "type": "timeseries",
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 15},
+        "options": {"tooltip": {"mode": "multi"}, "legend": {"displayMode": "list", "placement": "bottom"}},
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percentunit", "min": 0,
+            "custom": {"lineWidth": 2, "fillOpacity": 20, "gradientMode": "opacity", "spanNulls": true, "showPoints": "never"},
+            "color": {"fixedColor": "red", "mode": "fixed"}
+          }
+        },
+        "targets": [{"expr": "sum(rate(http_requests_total{job=\"fastapi\",status=~\"5..\"}[1m])) / sum(rate(http_requests_total{job=\"fastapi\"}[1m]))", "legendFormat": "Errores 5xx"}]
+      },
+      {
+        "id": 13, "title": "Distribución Códigos HTTP", "type": "piechart",
+        "gridPos": {"h": 8, "w": 6, "x": 12, "y": 15},
+        "options": {"pieType": "donut", "legend": {"displayMode": "table", "placement": "right", "values": ["value","percent"]}, "tooltip": {"mode": "single"}},
+        "fieldConfig": {
+          "defaults": {"unit": "short"},
+          "overrides": [
+            {"matcher": {"id": "byName", "options": "2xx"}, "properties": [{"id": "color", "value": {"fixedColor": "green", "mode": "fixed"}}]},
+            {"matcher": {"id": "byName", "options": "4xx"}, "properties": [{"id": "color", "value": {"fixedColor": "yellow", "mode": "fixed"}}]},
+            {"matcher": {"id": "byName", "options": "5xx"}, "properties": [{"id": "color", "value": {"fixedColor": "red", "mode": "fixed"}}]}
+          ]
+        },
+        "targets": [
+          {"expr": "sum(increase(http_requests_total{job=\"fastapi\",status=~\"2..\"}[30m]))", "legendFormat": "2xx"},
+          {"expr": "sum(increase(http_requests_total{job=\"fastapi\",status=~\"4..\"}[30m]))", "legendFormat": "4xx"},
+          {"expr": "sum(increase(http_requests_total{job=\"fastapi\",status=~\"5..\"}[30m]))", "legendFormat": "5xx"}
+        ]
+      },
+      {
+        "id": 14, "title": "Cargas del Modelo", "type": "timeseries",
+        "gridPos": {"h": 8, "w": 6, "x": 18, "y": 15},
+        "options": {"tooltip": {"mode": "multi"}, "legend": {"displayMode": "list", "placement": "bottom"}},
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "custom": {"lineWidth": 2, "fillOpacity": 10, "spanNulls": true, "showPoints": "auto"},
+            "color": {"mode": "palette-classic"}
+          }
+        },
+        "targets": [{"expr": "model_load_total{job=\"fastapi\"}", "legendFormat": "{{result}}"}]
+      }
+    ]
+  }
+}

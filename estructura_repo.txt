@@ -1,0 +1,169 @@
+Folder PATH listing for volume Windows
+Volume serial number is 000000D4 5C6C:DE9B
+C:.
+|   .gitignore
+|   Distribucion_Proyecto_MLOps_2026.docx
+|   docker-compose.yml
+|   estructura_repo.txt
+|   MLOPS_Proyecto_Final_2026_1.pdf
+|   README.md
+|   
++---.claude
+|       settings.local.json
+|       
++---.github
+|   \---workflows
+|           build-airflow.yml
+|           build-fastapi.yml
+|           build-streamlit.yml
+|           build-training.yml
+|           
++---airflow
+|   |   Dockerfile
+|   |   requirements.txt
+|   |   
+|   \---dags
+|       |   .gitkeep
+|       |   api_client.py
+|       |   main_pipeline.py
+|       |   preprocessing.py
+|       |   
+|       \---__pycache__
+|               api_client.cpython-312.pyc
+|               main_pipeline.cpython-312.pyc
+|               preprocessing.cpython-312.pyc
+|               
++---docs
+|   |   INTEGRATION_PLAN.md
+|   |   STATUS_P2.md
+|   |   video_sustentacion.md
+|   |   
+|   +---contracts
+|   |       p1-interfaces.md
+|   |       p2-interfaces.md
+|   |       
+|   +---mensajes
+|   |       para_p1.md
+|   |       para_p3.md
+|   |       para_p3_correr.md
+|   |       resumen_equipo.md
+|   |       
+|   \---pr
+|           p2-integration-fixes.md
+|           p2-mlflow-fastapi.md
+|           
++---fastapi
+|       Dockerfile
+|       inference_log.py
+|       main.py
+|       model_loader.py
+|       preprocess.py
+|       README.md
+|       requirements.txt
+|       schemas.py
+|       
++---kubernetes
+|   |   namespace.yaml
+|   |   secrets.yaml
+|   |   
+|   +---airflow
+|   |       .gitkeep
+|   |       airflow-configmap.yaml
+|   |       deployment.yaml
+|   |       nodeport.yaml
+|   |       pvc.yaml
+|   |       service.yaml
+|   |       
+|   +---argocd
+|   |       .gitkeep
+|   |       application.yaml
+|   |       
+|   +---data-api
+|   |       deployment.yaml
+|   |       
+|   +---databases
+|   |       .gitkeep
+|   |       configmap.yaml
+|   |       nodeport.yaml
+|   |       pvc.yaml
+|   |       service.yaml
+|   |       statefulset.yaml
+|   |       
+|   +---fastapi
+|   |       .gitkeep
+|   |       deployment.yaml
+|   |       nodeport.yaml
+|   |       service.yaml
+|   |       
+|   +---grafana
+|   |       .gitkeep
+|   |       dashboard-configmap.yaml
+|   |       dashboard-provider-configmap.yaml
+|   |       datasource-configmap.yaml
+|   |       deployment.yaml
+|   |       nodeport.yaml
+|   |       pvc.yaml
+|   |       service.yaml
+|   |       
+|   +---locust
+|   |       deployment.yaml
+|   |       service.yaml
+|   |       
+|   +---minio
+|   |       .gitkeep
+|   |       nodeport-s3.yaml
+|   |       nodeport-ui.yaml
+|   |       pvc.yaml
+|   |       service.yaml
+|   |       statefulset.yaml
+|   |       
+|   +---mlflow
+|   |       .gitkeep
+|   |       deployment.yaml
+|   |       nodeport-training.yaml
+|   |       nodeport.yaml
+|   |       service.yaml
+|   |       
+|   +---prometheus
+|   |       .gitkeep
+|   |       configmap.yaml
+|   |       deployment.yaml
+|   |       nodeport.yaml
+|   |       prometheus.yml
+|   |       pvc.yaml
+|   |       service.yaml
+|   |       
+|   \---streamlit
+|           .gitkeep
+|           deployment.yaml
+|           service.yaml
+|           
++---locust
+|       Dockerfile
+|       locustfile.py
+|       README.md
+|       
++---scripts
+|   |   init_db.sql
+|   |   
+|   \---smoke
+|           bootstrap_db.sql
+|           gen_synthetic_clean_data.py
+|           README.md
+|           run_smoke.ps1
+|           
++---streamlit
+|       app.py
+|       Dockerfile
+|       requirements.txt
+|       
+\---training
+        Dockerfile
+        entrypoint.sh
+        evaluate.py
+        preprocess.py
+        promote.py
+        README.md
+        requirements.txt
+        train.py
+        
