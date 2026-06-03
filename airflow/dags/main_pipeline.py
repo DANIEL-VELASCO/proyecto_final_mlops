@@ -109,15 +109,16 @@ def _run_training_cmd(cmd_args: list[str], stdin_data: str | None = None) -> dic
 
     Si se pasa stdin_data, se inyecta como stdin del container (requiere -i en docker run).
     """
-    # En Docker Desktop los ClusterIPs de K8s no son alcanzables desde contenedores
-    # Docker con --network host. Se usan NodePort services (30500/30432/30900) expuestos
-    # en localhost del nodo, que sí son accesibles desde la red host del Docker daemon.
-    docker_mlflow = MLFLOW_URI.replace("mlflow-service:5000",    "localhost:30500") \
-                              .replace("mlflow:5000",             "localhost:30500")
-    docker_db     = DATABASE_URI.replace("postgres-service:5432", "localhost:30432") \
-                                .replace("postgres:5432",          "localhost:30432")
-    docker_s3     = MLFLOW_S3.replace("minio-service:9000",       "localhost:30900") \
-                              .replace("minio:9000",               "localhost:30900")
+    # El contenedor de training corre con --network host, por lo que "localhost"
+    # es el host de Docker Desktop. Los servicios de Docker Compose exponen sus
+    # puertos directamente en localhost, así que apuntamos a esos puertos
+    # (15000=MLflow, 15432=PostgreSQL, 19000=MinIO) en lugar de los NodePort de K8s.
+    docker_mlflow = MLFLOW_URI.replace("mlflow-service:5000",    "localhost:15000") \
+                              .replace("mlflow:5000",             "localhost:15000")
+    docker_db     = DATABASE_URI.replace("postgres-service:5432", "localhost:15432") \
+                                .replace("postgres:5432",          "localhost:15432")
+    docker_s3     = MLFLOW_S3.replace("minio-service:9000",       "localhost:19000") \
+                              .replace("minio:9000",               "localhost:19000")
 
     stdin_flag = ["-i"] if stdin_data is not None else []
     docker_cmd = [
@@ -570,8 +571,9 @@ def train_candidate_model(**context):
         "--training-reason",  reason,
         "--commit-sha",       commit_sha,
         "--clean-table",      "clean_data.properties",
-        "--n-estimators",     "25",
-        "--max-depth",        "10",
+        "--n-estimators",     "3",
+        "--max-depth",        "3",
+        "--min-samples-leaf", "50",
     ])
 
     log.info("Training completado — run_id: %s, version: %s",

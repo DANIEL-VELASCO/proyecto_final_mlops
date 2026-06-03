@@ -4,6 +4,11 @@ services:
   postgres:
     image: postgres:15
     container_name: mlops-postgres
+    # Mata conexiones zombie (idle in transaction) tras 5 min — evita bloqueos en Airflow
+    command: >
+      postgres
+      -c idle_in_transaction_session_timeout=300000
+      -c statement_timeout=0
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-mlops}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mlops}
@@ -12,6 +17,7 @@ services:
       - "15432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mlops}"]
       interval: 10s
@@ -24,16 +30,29 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    command: standalone
+    restart: unless-stopped
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER:-mlops}:${POSTGRES_PASSWORD:-mlops}@postgres:5432/airflow
       AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:-zTJpbGAhiJfJvFTtUjRQ-G7LMgG4-rVFqtMYyObFQ9Y=}
+      # Webserver estable bajo carga
+      AIRFLOW__WEBSERVER__WEB_SERVER_MASTER_TIMEOUT: "600"
+      AIRFLOW__WEBSERVER__WORKER_REFRESH_INTERVAL: "600"
+      AIRFLOW__WEBSERVER__WORKERS: "1"
+      AIRFLOW__WEBSERVER__WORKER_TIMEOUT: "600"
+      AIRFLOW__WEBSERVER__WORKER_CLASS: "gthread"
+      AIRFLOW__WEBSERVER__THREADS_PER_WORKER: "4"
+      # Conexiones BD — pre-ping evita usar conexiones muertas
+      AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_PRE_PING: "True"
+      AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_RECYCLE: "1800"
+      AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_SIZE: "5"
       MLFLOW_TRACKING_URI: http://mlflow:5000
       # ── Persona 1: Data API ──
       DATA_API_HOST: data-api
       DATA_API_PORT: "80"
       DATA_API_GROUP_ID: "${DATA_API_GROUP_ID:-1}"
-      DATA_API_TIMEOUT: "30"
+      DATA_API_TIMEOUT: "120"
       DATA_API_MAX_RETRIES: "3"
       # ── Persona 1: Base de datos ──
       DATABASE_URI: postgresql+psycopg2://${POSTGRES_USER:-mlops}:${POSTGRES_PASSWORD:-mlops}@postgres:5432/${POSTGRES_DB:-mlops}
@@ -54,12 +73,14 @@ services:
       - "18080:8080"
     volumes:
       - ./airflow/dags:/opt/airflow/dags
+      - /var/run/docker.sock:/var/run/docker.sock
 
   # ── Persona 2 ──────────────────────────────────────────────
   minio:
     image: minio/minio:latest
     container_name: mlops-minio
     command: server /data --console-address ":9001"
+    restart: unless-stopped
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
@@ -77,6 +98,7 @@ services:
   mlflow:
     image: ghcr.io/mlflow/mlflow:latest
     container_name: mlops-mlflow
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
@@ -98,6 +120,7 @@ services:
   fastapi:
     build: ./fastapi
     container_name: mlops-fastapi
+    restart: unless-stopped
     depends_on:
       - mlflow
     environment:
@@ -115,7 +138,6 @@ services:
       - "8000:8000"
 
   # P2 — invocable manualmente con perfil 'training':
-  #   docker compose --profile training run --rm training train --batch-id local-001 --training-reason "smoke" ...
   training:
     build: ./training
     container_name: mlops-training
@@ -135,6 +157,7 @@ services:
   streamlit:
     build: ./streamlit
     container_name: mlops-streamlit
+    restart: unless-stopped
     depends_on:
       - fastapi
     environment:
@@ -146,6 +169,7 @@ services:
   prometheus:
     image: prom/prometheus:latest
     container_name: mlops-prometheus
+    restart: unless-stopped
     volumes:
       - ./kubernetes/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     ports:
@@ -154,6 +178,7 @@ services:
   grafana:
     image: grafana/grafana:latest
     container_name: mlops-grafana
+    restart: unless-stopped
     depends_on:
       - prometheus
     environment:
@@ -168,6 +193,7 @@ services:
   data-api:
     image: cristiandiaz13/mlops-puj:data-api-pf-v1
     container_name: mlops-data-api
+    restart: unless-stopped
     ports:
       - "18001:80"
 
