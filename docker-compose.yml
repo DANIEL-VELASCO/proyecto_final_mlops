@@ -34,15 +34,14 @@ services:
     restart: unless-stopped
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__DAGBAG_IMPORT_TIMEOUT: "120"
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${POSTGRES_USER:-mlops}:${POSTGRES_PASSWORD:-mlops}@postgres:5432/airflow
       AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:-zTJpbGAhiJfJvFTtUjRQ-G7LMgG4-rVFqtMYyObFQ9Y=}
       # Webserver estable bajo carga
       AIRFLOW__WEBSERVER__WEB_SERVER_MASTER_TIMEOUT: "600"
       AIRFLOW__WEBSERVER__WORKER_REFRESH_INTERVAL: "600"
       AIRFLOW__WEBSERVER__WORKERS: "1"
-      AIRFLOW__WEBSERVER__WORKER_TIMEOUT: "600"
-      AIRFLOW__WEBSERVER__WORKER_CLASS: "gthread"
-      AIRFLOW__WEBSERVER__THREADS_PER_WORKER: "4"
+      AIRFLOW__WEBSERVER__WORKER_TIMEOUT: "120"
       # Conexiones BD — pre-ping evita usar conexiones muertas
       AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_PRE_PING: "True"
       AIRFLOW__DATABASE__SQL_ALCHEMY_POOL_RECYCLE: "1800"
