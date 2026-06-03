@@ -23,12 +23,12 @@ Sistema MLOps completo para estimación de precios de propiedades inmobiliarias.
             │                   │                     │
        ┌────▼────┐         ┌────▼────┐           ┌────▼────┐
        │ Airflow │         │ MLflow  │           │ FastAPI │
-       │  (P1)   │◄───────►│  (P2)   │◄─────────►│  (P2)   │
+       │         │◄───────►│         │◄─────────►│         │
        └────┬────┘         └────┬────┘           └────┬────┘
             │                   │                     │
             │              ┌────▼────┐           ┌────▼─────┐
             │              │  MinIO  │           │Streamlit │
-            │              │  (P2)   │           │   (P3)   │
+            │              │        │           │          │
             │              └─────────┘           └──────────┘
             ▼                                          │
        ┌─────────┐                                     │
@@ -50,7 +50,7 @@ Sistema MLOps completo para estimación de precios de propiedades inmobiliarias.
 
 ## Estado actual
 
-✅ Sistema validado **end-to-end** en clúster Kubernetes local. Modelo `house-price-model v1` con alias `production` sirviendo predicciones; 2655 inferencias registradas durante load test de 90 segundos (0 fallos).
+ Sistema validado **end-to-end** en clúster Kubernetes local. Modelo `house-price-model v1` con alias `production` sirviendo predicciones; 2655 inferencias registradas durante load test de 90 segundos (0 fallos).
 
 ## Estructura del repositorio
 

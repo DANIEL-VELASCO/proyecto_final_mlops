@@ -684,8 +684,8 @@ def promote_model(**context):
                 "new_cats":    json.dumps(new_cats), "vol_pct": volume_pct,
                 "run_id":      train_out.get("run_id"),
                 "model_version": str(promo.get("candidate_version", "")),
-                "mae_c":  candidate_m.get("mae"), "mae_p":  production_m.get("mae"),
-                "rmse_c": candidate_m.get("rmse"), "rmse_p": production_m.get("rmse"),
+                "mae_c":  candidate_m.get("mae"), "mae_p":  (production_m.get("mae") if production_m else None),
+                "rmse_c": candidate_m.get("rmse"), "rmse_p": (production_m.get("rmse") if production_m else None),
                 "promo_reason": promo.get("reason", ""),
             },
         )
@@ -738,8 +738,8 @@ def reject_model(**context):
                 "new_cats":    json.dumps(new_cats), "vol_pct": volume_pct,
                 "run_id":      train_out.get("run_id"),
                 "model_version": str(promo.get("candidate_version", "")),
-                "mae_c":  candidate_m.get("mae"), "mae_p":  production_m.get("mae"),
-                "rmse_c": candidate_m.get("rmse"), "rmse_p": production_m.get("rmse"),
+                "mae_c":  candidate_m.get("mae"), "mae_p":  (production_m.get("mae") if production_m else None),
+                "rmse_c": candidate_m.get("rmse"), "rmse_p": (production_m.get("rmse") if production_m else None),
                 "promo_reason": promo.get("reason", ""),
             },
         )
