@@ -202,12 +202,11 @@ Este proyecto implementa un sistema **MLOps de Nivel 4** que automatiza el ciclo
 │       └── README.md
 │
 ├── docs/
-│   ├── contracts/
-│   │   ├── p1-interfaces.md        # Contrato de interfaces entre componentes
-│   │   └── p2-interfaces.md
-│   ├── INTEGRATION_PLAN.md
-│   └── video_sustentacion.md
+│   └── contracts/
+│       ├── p1-interfaces.md        # Contrato de interfaces entre componentes
+│       └── p2-interfaces.md
 │
+├── image/                          # Capturas del sistema
 ├── grafana_dashboard.json          # Dashboard predefinido para importar
 ├── docker-compose.yml              # Stack completo para desarrollo local
 └── README.md
@@ -646,6 +645,8 @@ Muestra:
   - Amarillo: entrenado pero no promovido
   - Verde: entrenado y promovido a producción
 - **Detalle expandible** por lote: métricas de candidato vs. productivo, variables con drift, categorías nuevas, razón de la decisión
+
+![Streamlit — Historial de Entrenamiento](image/steamlit.png)
 
 ---
 
